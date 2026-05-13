@@ -1,279 +1,444 @@
 "use client";
-import { useState, useRef, useEffect } from "react";
-import { generateArtifact, generateSmartArtifact, ArtifactType } from "@/utils/generateArtifact";
-import { speakText } from "@/utils/speech";
-import VoiceButton from "@/components/VoiceButton";
+
+import { useState, useRef, useEffect, useCallback } from "react";
+import { memory } from "@/lib/memory";
+import { speak, startSpeechRecognition } from "@/utils/speech";
+import {
+  SendIcon,
+  MicIcon,
+  PaperclipIcon,
+  StarIcon,
+} from "@/components/SvgIcons";
 
 interface Message {
+  id: string;
   role: "user" | "assistant";
   content: string;
+  timestamp: number;
+  isStreaming?: boolean;
 }
 
 interface ChatWindowProps {
-  onCodeUpdate: (code: string, language?: string) => void;
-  setIsLoading: (loading: boolean) => void;
+  isOpen: boolean;
+  onClose: () => void;
 }
 
-const CODE_LANGUAGES = new Set([
-  'html','css','javascript','js','typescript','ts','jsx','tsx','python','py',
-  'json','xml','yaml','yml','sql','bash','sh','shell','powershell','ps1',
-  'c','cpp','csharp','cs','java','go','rust','rs','swift','kotlin','kt',
-  'ruby','rb','php','lua','r','matlab','scala','clojure','clj','haskell','hs',
-  'erlang','erl','elixir','ex','fsharp','fs','vb','asm','perl','pl','groovy',
-  'coffeescript','coffee','elm','nim','crystal','cr','vlang','v','dart',
-  'vue','svelte','scss','sass','less','graphql','gql','prisma','dockerfile',
-  'makefile','cmake','markdown','md','latex','tex','bib','csv','tsv','ini','env',
-  'toml','log','diff','patch','http','regex','nginx','apache','apacheconf',
-]);
-
-export default function ChatWindow({ onCodeUpdate, setIsLoading }: ChatWindowProps) {
-  const [messages, setMessages] = useState<Message[]>([
-    {
-      role: "assistant",
-      content: "Hi Dal! I'm Byeol, your personal star. ✨ How can I help you with coding or studies today?",
-    },
-  ]);
+export default function ChatWindow({ isOpen, onClose }: ChatWindowProps) {
+  const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState("");
-  const [autoSpeak, setAutoSpeak] = useState(true);
-  const chatEndRef = useRef<HTMLDivElement>(null);
-  const fileInputRef = useRef<HTMLInputElement>(null);
+  const [isLoading, setIsLoading] = useState(false);
+  const [isThinking, setIsThinking] = useState(false);
+  const [isRecording, setIsRecording] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const messagesEndRef = useRef<HTMLDivElement>(null);
+  const inputRef = useRef<HTMLInputElement>(null);
+  const abortControllerRef = useRef<AbortController | null>(null);
 
+  // Load messages from IndexedDB on mount
   useEffect(() => {
-    chatEndRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, [messages]);
-
-  const updateMemory = async (assistantContent: string) => {
-    const summary = assistantContent.slice(0, 300);
-    try {
-      await fetch("/api/memory", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          recent_chat_summary: summary,
-          total_lessons_completed: messages.length,
-        }),
-      });
-    } catch (err) {
-      console.error("Memory update failed:", err);
-    }
-  };
-
-  const extractLiveContent = (content: string) => {
-    const codeBlockRegex = /```(\w+)?\n([\s\S]*?)```/g;
-    let match;
-    while ((match = codeBlockRegex.exec(content)) !== null) {
-      const lang = (match[1] || '').toLowerCase().trim();
-      const code = match[2].trim();
-      if (CODE_LANGUAGES.has(lang)) {
-        onCodeUpdate(code, lang);
-      }
-    }
-
-    const artifactRegex = /```artifact\n([\s\S]*?)```/g;
-    while ((match = artifactRegex.exec(content)) !== null) {
+    const loadMessages = async () => {
       try {
-        const artifact = JSON.parse(match[1].trim());
-        handleArtifact(artifact);
-      } catch (err) {
-        console.warn("Invalid artifact JSON", match[1]);
+        const saved = await memory.getMessages(50);
+        if (saved && saved.length > 0) {
+          setMessages(
+            saved.map((m: any) => ({
+              id: m.id?.toString() || crypto.randomUUID(),
+              role: m.role,
+              content: m.content,
+              timestamp: m.timestamp || Date.now(),
+            }))
+          );
+        } else {
+          setMessages([
+            {
+              id: "welcome",
+              role: "assistant",
+              content:
+                "Hi Dal! I'm Byeol, your personal star. ✨ How can I help you with coding or studies today?",
+              timestamp: Date.now(),
+            },
+          ]);
+        }
+      } catch (e) {
+        console.error("Failed to load messages:", e);
+        setMessages([
+          {
+            id: "welcome",
+            role: "assistant",
+            content:
+              "Hi Dal! I'm Byeol, your personal star. ✨ How can I help you with coding or studies today?",
+            timestamp: Date.now(),
+          },
+        ]);
       }
+    };
+    loadMessages();
+  }, []);
+
+  // Auto-scroll to bottom when messages change
+  useEffect(() => {
+    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+  }, [messages, isThinking]);
+
+  // Focus input when chat opens
+  useEffect(() => {
+    if (isOpen) {
+      setTimeout(() => inputRef.current?.focus(), 100);
     }
+  }, [isOpen]);
 
-    const fileRegex = /\[FILE:\s*([^\]]+)\.([^\]]+)\]([\s\S]*?)\[\/FILE\]/g;
-    while ((match = fileRegex.exec(content)) !== null) {
-      const [, name, ext, fileContent] = match;
-      const type = ext.toLowerCase() as ArtifactType;
-      generateArtifact({
-        type,
-        content: fileContent.trim(),
-        filename: name,
-      }).catch(console.error);
-    }
-  };
+  const generateId = () =>
+    typeof crypto !== "undefined"
+      ? crypto.randomUUID()
+      : `${Date.now()}-${Math.random()}`;
 
-  const handleArtifact = (artifact: any) => {
-    if (!artifact.type) return;
-
-    if (artifact.type === 'zip' && Array.isArray(artifact.files)) {
-      generateArtifact({
-        type: 'zip',
-        content: '',
-        title: artifact.title || 'Byeol_Bundle',
-        files: artifact.files,
-      }).catch(console.error);
-      return;
-    }
-
-    const type = artifact.type as ArtifactType;
-    generateArtifact({
-      type,
-      content: artifact.content || '',
-      title: artifact.title || 'Byeol_Study_Artifact',
-      filename: artifact.filename,
-      options: artifact.options,
-    }).catch(console.error);
-  };
-
-  const sendMessage = async (content: string) => {
-    if (!content.trim()) return;
-    const userMsg: Message = { role: "user", content };
-    const updatedMessages = [...messages, userMsg];
-    setMessages(updatedMessages);
-    setInput("");
-    setIsLoading(true);
-
+  const formatTime = (timestamp: number) => {
     try {
-      const res = await fetch("/api/chat", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ messages: updatedMessages }),
+      return new Date(timestamp).toLocaleTimeString([], {
+        hour: "2-digit",
+        minute: "2-digit",
       });
+    } catch {
+      return "";
+    }
+  };
 
-      if (!res.ok) throw new Error("API error");
-      const reader = res.body!.getReader();
-      const decoder = new TextDecoder();
-      let assistantContent = "";
+  const sendMessage = useCallback(
+    async (text: string) => {
+      if (!text.trim() || isLoading) return;
 
-      setMessages((prev) => [...prev, { role: "assistant", content: "" }]);
+      const userMsg: Message = {
+        id: generateId(),
+        role: "user",
+        content: text.trim(),
+        timestamp: Date.now(),
+      };
 
-      while (true) {
-        const { done, value } = await reader.read();
-        if (done) break;
-        const chunk = decoder.decode(value);
-        const lines = chunk.split("\n");
-        for (const line of lines) {
-          if (line.startsWith("data: ")) {
-            const data = line.slice(6);
-            if (data === "[DONE]" || data === "[TRUNCATED]") continue;
+      // Add user message to UI immediately
+      setMessages((prev) => [...prev, userMsg]);
+      setInput("");
+      setIsLoading(true);
+      setIsThinking(true);
+      setError(null);
+
+      // Save user message to IndexedDB
+      try {
+        await memory.saveMessage({
+          role: "user",
+          content: userMsg.content,
+          timestamp: userMsg.timestamp,
+        });
+      } catch (e) {
+        console.error("Failed to save user message:", e);
+      }
+
+      // Create placeholder for assistant response
+      const assistantId = generateId();
+      setMessages((prev) => [
+        ...prev,
+        {
+          id: assistantId,
+          role: "assistant",
+          content: "",
+          timestamp: Date.now(),
+          isStreaming: true,
+        },
+      ]);
+
+      // Build conversation history for API
+      const apiMessages = messages
+        .filter((m) => m.role !== "system")
+        .slice(-10)
+        .map((m) => ({ role: m.role, content: m.content }));
+
+      apiMessages.push({ role: "user" as const, content: userMsg.content });
+
+      // Abort previous request if exists
+      if (abortControllerRef.current) {
+        abortControllerRef.current.abort();
+      }
+      abortControllerRef.current = new AbortController();
+
+      try {
+        const response = await fetch("/api/chat", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ messages: apiMessages }),
+          signal: abortControllerRef.current.signal,
+        });
+
+        if (!response.ok) {
+          const errorData = await response.json().catch(() => ({}));
+          throw new Error(
+            errorData.error || `HTTP error! status: ${response.status}`
+          );
+        }
+
+        const reader = response.body?.getReader();
+        if (!reader) {
+          throw new Error("No response body available");
+        }
+
+        const decoder = new TextDecoder();
+        let buffer = "";
+        let fullContent = "";
+
+        setIsThinking(false);
+
+        while (true) {
+          const { done, value } = await reader.read();
+          if (done) break;
+
+          buffer += decoder.decode(value, { stream: true });
+          const lines = buffer.split("\n");
+          buffer = lines.pop() || "";
+
+          for (const line of lines) {
+            const trimmed = line.trim();
+            if (!trimmed || !trimmed.startsWith("data: ")) continue;
+
+            const data = trimmed.slice(6);
+            if (data === "[DONE]") continue;
+
             try {
-              const text = JSON.parse(data);
-              assistantContent += text;
-              setMessages((prev) => {
-                const copy = [...prev];
-                copy[copy.length - 1] = { role: "assistant", content: assistantContent };
-                return copy;
-              });
-              extractLiveContent(assistantContent);
+              const parsed = JSON.parse(data);
+              const content = parsed.content || "";
+              if (content) {
+                fullContent += content;
+                setMessages((prev) =>
+                  prev.map((m) =>
+                    m.id === assistantId
+                      ? { ...m, content: fullContent, isStreaming: true }
+                      : m
+                  )
+                );
+              }
             } catch (e) {
-              // ignore malformed chunks
+              // Ignore malformed JSON lines
             }
           }
         }
-      }
 
-      extractLiveContent(assistantContent);
-      updateMemory(assistantContent);
-      if (autoSpeak && assistantContent.length > 0) {
-        speakText(assistantContent);
+        // Mark streaming as complete
+        setMessages((prev) =>
+          prev.map((m) =>
+            m.id === assistantId ? { ...m, isStreaming: false } : m
+          )
+        );
+
+        // Save assistant message to IndexedDB
+        if (fullContent) {
+          await memory.saveMessage({
+            role: "assistant",
+            content: fullContent,
+            timestamp: Date.now(),
+          });
+
+          // Speak the response
+          speak(fullContent);
+        }
+      } catch (err: any) {
+        if (err.name === "AbortError") {
+          // User cancelled, remove the empty assistant message
+          setMessages((prev) => prev.filter((m) => m.id !== assistantId));
+          return;
+        }
+
+        console.error("Chat error:", err);
+        setError(err.message || "Something went wrong. Please try again.");
+
+        // Replace empty assistant message with error
+        setMessages((prev) =>
+          prev
+            .filter((m) => m.id !== assistantId)
+            .concat({
+              id: generateId(),
+              role: "assistant",
+              content: `I'm sorry, Dal. I encountered an error: ${err.message}. Please try again in a moment. 💫`,
+              timestamp: Date.now(),
+            })
+        );
+      } finally {
+        setIsLoading(false);
+        setIsThinking(false);
+        abortControllerRef.current = null;
       }
-    } catch (error) {
-      console.error(error);
-      setMessages((prev) => [
-        ...prev,
-        { role: "assistant", content: "I'm having a moment, Dal. Could you try again? 💛" },
-      ]);
+    },
+    [messages, isLoading]
+  );
+
+  const handleVoiceInput = async () => {
+    if (isRecording) return;
+    setIsRecording(true);
+    try {
+      const text = await startSpeechRecognition();
+      if (text) {
+        setInput(text);
+        await sendMessage(text);
+      }
+    } catch (e: any) {
+      console.error("Voice input error:", e);
+      setError("Voice recognition failed. Please try typing instead.");
     } finally {
-      setIsLoading(false);
+      setIsRecording(false);
     }
   };
 
-  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleFileUpload = async (
+    e: React.ChangeEvent<HTMLInputElement>
+  ) => {
     const file = e.target.files?.[0];
     if (!file) return;
+
     setIsLoading(true);
+    setIsThinking(true);
 
     try {
       const formData = new FormData();
       formData.append("file", file);
-      const res = await fetch("/api/process-file", { method: "POST", body: formData });
-      const { text, error, meta, wasTruncated } = await res.json();
 
-      if (error) {
-        setMessages((prev) => [...prev, { role: "assistant", content: `File error: ${error}` }]);
-        return;
+      const response = await fetch("/api/process-file", {
+        method: "POST",
+        body: formData,
+      });
+
+      if (!response.ok) {
+        throw new Error("Failed to process file");
       }
 
-      const truncNote = wasTruncated ? '\n\n[Note: File was truncated due to size.]' : '';
-      const metaNote = meta?.numpages ? `\n[PDF pages: ${meta.numpages}]` : '';
-      const fileMessage = `I've uploaded a file: "${file.name}"${metaNote}${truncNote}. Please summarize it, generate 5 practice questions, and create an interactive study artifact if helpful.\n\n---\n${text}\n---`;
+      const data = await response.json();
 
-      await sendMessage(fileMessage);
-    } catch (err) {
-      console.error(err);
-      setMessages((prev) => [...prev, { role: "assistant", content: "Failed to upload file. Please try again." }]);
+      const fileMsg = `I uploaded a file: ${file.name}\n\nContent summary:\n${data.summary || data.content || "File processed successfully"}`;
+      await sendMessage(fileMsg);
+    } catch (err: any) {
+      setError(err.message || "Failed to upload file");
     } finally {
       setIsLoading(false);
-      if (fileInputRef.current) fileInputRef.current.value = "";
+      setIsThinking(false);
+      // Reset file input
+      e.target.value = "";
     }
   };
 
+  if (!isOpen) return null;
+
   return (
-    <div className="flex flex-col h-full p-4">
-      <div className="flex-1 overflow-y-auto space-y-4">
-        {messages.map((msg, i) => (
+    <div className={`chat-panel glass ${isOpen ? "open" : ""}`} id="chatPanel">
+      {/* Chat Header */}
+      <div className="chat-header">
+        <div className="chat-avatar">
+          <StarIcon />
+        </div>
+        <div className="chat-name">Byeol</div>
+        <div className="chat-status">
+          <span className="status-dot"></span>
+          <span>Online — Dal&apos;s personal star</span>
+        </div>
+      </div>
+
+      {/* Messages */}
+      <div className="chat-messages" id="chatMessages">
+        {messages.map((msg) => (
           <div
-            key={i}
-            className={`flex ${msg.role === "user" ? "justify-end" : "justify-start"}`}
+            key={msg.id}
+            className={`msg ${msg.role} ${msg.isStreaming ? "streaming" : ""}`}
           >
-            <div
-              className={`max-w-[80%] p-3 rounded-2xl ${
-                msg.role === "user"
-                  ? "bg-[var(--primary)] text-white"
-                  : "bg-white text-[var(--text)]"
-              }`}
-            >
-              <p className="whitespace-pre-wrap">{msg.content}</p>
+            <div className="msg-content">
+              {msg.role === "assistant" && (
+                <div className="msg-avatar-small">
+                  <StarIcon />
+                </div>
+              )}
+              <div className="msg-body">
+                <div className="msg-text">{msg.content}</div>
+                <div className="msg-time">{formatTime(msg.timestamp)}</div>
+              </div>
             </div>
           </div>
         ))}
-        <div ref={chatEndRef} />
+
+        {/* Thinking Indicator */}
+        {isThinking && (
+          <div className="msg assistant thinking">
+            <div className="msg-content">
+              <div className="msg-avatar-small">
+                <StarIcon />
+              </div>
+              <div className="msg-body">
+                <div className="msg-text">
+                  <div className="thinking-indicator">
+                    <span></span>
+                    <span></span>
+                    <span></span>
+                  </div>
+                  <div className="thinking-text">Byeol is thinking...</div>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
+        <div ref={messagesEndRef} />
       </div>
 
-      <div className="mt-4 flex gap-2 items-center">
-        <VoiceButton onTranscript={(text) => sendMessage(text)} />
+      {/* Error Toast */}
+      {error && (
+        <div className="chat-error" onClick={() => setError(null)}>
+          <span>{error}</span>
+          <button aria-label="Dismiss error">×</button>
+        </div>
+      )}
 
-        <button
-          onClick={() => setAutoSpeak(!autoSpeak)}
-          className={`p-2 rounded-full border transition ${
-            autoSpeak ? "bg-[var(--primary)] text-white" : "bg-[var(--surface)]"
-          }`}
-          title={autoSpeak ? "Mute voice" : "Unmute voice"}
-        >
-          {autoSpeak ? "🔊" : "🔇"}
-        </button>
+      {/* Input Area */}
+      <div className="chat-input-area">
+        <div className="input-glass">
+          <label className="input-btn" title="Attach file">
+            <PaperclipIcon />
+            <input
+              type="file"
+              hidden
+              accept=".txt,.html,.css,.js,.pdf,.docx"
+              onChange={handleFileUpload}
+              disabled={isLoading}
+            />
+          </label>
 
-        <button
-          onClick={() => fileInputRef.current?.click()}
-          className="p-2 rounded-full bg-[var(--surface)] border border-[var(--border)]"
-          title="Upload a file"
-        >
-          📎
-        </button>
-        <input
-          ref={fileInputRef}
-          type="file"
-          className="hidden"
-          accept=".pdf,.docx,.txt,.md,.html,.css,.js,.ts,.jsx,.tsx,.py,.json,.csv,.xml,.yaml,.yml,.sql,.sh,.c,.cpp,.java,.go,.rs,.rb,.php,.lua,.r,.swift,.kt,.dart,.cs,.scss,.sass,.less,.vue,.svelte,.ini,.env,.toml,.log,.tex,.xlsx,.xls"
-          onChange={handleFileUpload}
-        />
+          <button
+            className={`input-btn mic ${isRecording ? "recording" : ""}`}
+            title={isRecording ? "Recording..." : "Hold to talk"}
+            onClick={handleVoiceInput}
+            disabled={isLoading}
+            aria-label={isRecording ? "Recording" : "Voice input"}
+          >
+            <MicIcon />
+          </button>
 
-        <input
-          type="text"
-          value={input}
-          onChange={(e) => setInput(e.target.value)}
-          onKeyDown={(e) => e.key === "Enter" && sendMessage(input)}
-          placeholder="Ask Byeol anything about code or your studies..."
-          className="flex-1 p-3 rounded-xl border focus:outline-none"
-          style={{ borderColor: "var(--border)", backgroundColor: "var(--surface)" }}
-        />
+          <input
+            ref={inputRef}
+            type="text"
+            value={input}
+            onChange={(e) => setInput(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === "Enter" && !e.shiftKey) {
+                e.preventDefault();
+                sendMessage(input);
+              }
+            }}
+            placeholder="Ask Byeol anything, Dal..."
+            disabled={isLoading}
+            aria-label="Chat message"
+          />
 
-        <button
-          onClick={() => sendMessage(input)}
-          className="px-4 py-2 rounded-xl text-white font-semibold"
-          style={{ backgroundColor: "var(--primary)" }}
-        >
-          Send
-        </button>
+          <button
+            className="input-btn send"
+            title="Send"
+            onClick={() => sendMessage(input)}
+            disabled={isLoading || !input.trim()}
+            aria-label="Send message"
+          >
+            <SendIcon />
+          </button>
+        </div>
       </div>
     </div>
   );

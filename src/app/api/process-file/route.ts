@@ -1,42 +1,23 @@
-import { NextRequest, NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from "next/server";
 
-export const runtime = 'nodejs';
+export const runtime = "edge";
 
 export async function POST(req: NextRequest) {
   try {
     const formData = await req.formData();
-    const file = formData.get('file') as File | null;
+    const file = formData.get("file") as File;
+
     if (!file) {
-      return NextResponse.json({ error: 'No file provided' }, { status: 400 });
+      return NextResponse.json({ error: "No file provided" }, { status: 400 });
     }
 
-    const ext = file.name.split('.').pop()?.toLowerCase();
-    const buffer = Buffer.from(await file.arrayBuffer());
+    // Read file text
+    const text = await file.text();
+    const maxLength = 15000;
+    const truncated = text.length > maxLength ? text.slice(0, maxLength) + "\n... [truncated]" : text;
 
-    let text = '';
-
-    if (ext === 'txt') {
-      text = new TextDecoder().decode(buffer);
-    } else if (ext === 'pdf') {
-      const pdfParse = (await import('pdf-parse')).default;
-      const data = await pdfParse(buffer);
-      text = data.text;
-    } else if (ext === 'docx') {
-      const mammoth = (await import('mammoth')).default;
-      const result = await mammoth.extractRawText({ buffer });
-      text = result.value;
-    } else {
-      return NextResponse.json({ error: `Unsupported file type: .${ext}` }, { status: 400 });
-    }
-
-    const maxChars = 15000;
-    if (text.length > maxChars) {
-      text = text.slice(0, maxChars) + '\n... (truncated)';
-    }
-
-    return NextResponse.json({ fileName: file.name, text });
+    return NextResponse.json({ text: truncated, filename: file.name });
   } catch (error: any) {
-    console.error('File processing error:', error);
-    return NextResponse.json({ error: error.message || 'Failed to process file' }, { status: 500 });
+    return NextResponse.json({ error: error.message || "Failed to process file" }, { status: 500 });
   }
 }

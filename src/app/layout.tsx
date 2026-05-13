@@ -5,7 +5,7 @@ import InstallButton from '@/components/InstallButton';
 
 export const metadata: Metadata = {
   title: 'Byeol – Dal\'s Personal Star',
-  description: 'Crafted with love by Dal for Maureen',
+  description: 'Crafted with love by Infinite for Dal',
   manifest: '/manifest.json',
   themeColor: '#ec4899',
 };

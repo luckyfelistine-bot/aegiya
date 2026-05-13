@@ -1,7 +1,6 @@
 "use client";
 import { useState, useRef, useEffect } from "react";
-import { generatePDF } from "@/utils/generatePDF";
-import { generateDOCX } from "@/utils/generateDOCX";
+import { generatePDF, generateDOCX } from "@/utils/generateArtifact";
 
 interface Message {
   role: "user" | "assistant";

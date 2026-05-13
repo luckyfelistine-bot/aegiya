@@ -147,7 +147,6 @@ export default function ChatWindow({ isOpen, onClose }: ChatWindowProps) {
 
       // Build conversation history for API
       const apiMessages = messages
-        .filter((m) => m.role !== "system")
         .slice(-10)
         .map((m) => ({ role: m.role, content: m.content }));
 

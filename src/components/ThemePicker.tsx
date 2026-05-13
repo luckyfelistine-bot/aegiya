@@ -1,73 +1,57 @@
 "use client";
-import { useState, useEffect, createContext, useContext } from "react";
-import { builtInThemes, Theme, getDefaultTheme } from "@/lib/themes";
 
-const ThemeContext = createContext<{
-  theme: Theme;
-  setTheme: (t: Theme) => void;
-}>(null!);
+import React, { useState, useEffect } from "react";
+import { constellations } from "@/lib/themes";
+import { PaletteIcon } from "./SvgIcons";
 
-export const ThemeProvider = ({ children }: { children: React.ReactNode }) => {
-  const [theme, setTheme] = useState<Theme>(getDefaultTheme());
+export default function ThemePicker() {
+  const [open, setOpen] = useState(false);
+  const [current, setCurrent] = useState("andromeda");
 
   useEffect(() => {
     const saved = localStorage.getItem("byeol-theme");
     if (saved) {
-      try {
-        setTheme(JSON.parse(saved));
-      } catch {}
+      setCurrent(saved);
+      document.documentElement.setAttribute("data-theme", saved);
     }
   }, []);
 
-  useEffect(() => {
-    const root = document.documentElement;
-    root.style.setProperty("--primary", theme.primary);
-    root.style.setProperty("--secondary", theme.secondary);
-    root.style.setProperty("--surface", theme.surface);
-    root.style.setProperty("--text", theme.text);
-    root.style.setProperty("--border", theme.border);
-    localStorage.setItem("byeol-theme", JSON.stringify(theme));
-  }, [theme]);
+  const setTheme = (name: string) => {
+    document.documentElement.setAttribute("data-theme", name);
+    setCurrent(name);
+    localStorage.setItem("byeol-theme", name);
+    setOpen(false);
+  };
 
   return (
-    <ThemeContext.Provider value={{ theme, setTheme }}>
-      <ThemeSwitcher />
-      {children}
-    </ThemeContext.Provider>
-  );
-};
-
-export const useTheme = () => useContext(ThemeContext);
-
-const ThemeSwitcher = () => {
-  const { theme, setTheme } = useTheme();
-  const [open, setOpen] = useState(false);
-
-  return (
-    <div className="fixed top-4 right-4 z-50">
+    <div className="theme-switcher">
       <button
+        className="theme-btn glass-sm"
         onClick={() => setOpen(!open)}
-        className="rounded-full bg-white/80 p-2 shadow-lg backdrop-blur"
-        aria-label="Change theme"
+        aria-label="Change constellation theme"
       >
-        🎨
+        <PaletteIcon size={18} />
       </button>
       {open && (
-        <div className="absolute right-0 mt-2 w-48 rounded-lg bg-white p-2 shadow-xl">
-          {builtInThemes.map((t) => (
+        <div className="theme-dropdown glass-strong">
+          {constellations.map((t) => (
             <button
               key={t.name}
-              onClick={() => { setTheme(t); setOpen(false); }}
-              className={`block w-full text-left p-2 rounded ${
-                theme.name === t.name ? "bg-pink-100 font-bold" : "hover:bg-gray-100"
-              }`}
+              className={`theme-option ${current === t.name ? "active" : ""}`}
+              onClick={() => setTheme(t.name)}
             >
-              <span className="inline-block w-4 h-4 rounded-full mr-2" style={{ background: t.primary }}></span>
-              {t.name}
+              <div
+                className="theme-swatch"
+                style={{ background: t.swatch }}
+              />
+              <div>
+                <div>{t.label}</div>
+                <div style={{ fontSize: "0.7rem", color: "var(--text-muted)" }}>{t.mood}</div>
+              </div>
             </button>
           ))}
         </div>
       )}
     </div>
   );
-};
+}

@@ -1,65 +1,62 @@
 "use client";
-import { useState, useRef } from "react";
+
+import React, { useState, useRef, useCallback } from "react";
+import { MicIcon } from "./SvgIcons";
 
 interface VoiceButtonProps {
   onTranscript: (text: string) => void;
-  onSpeakStart?: () => void;   // optional: disable auto‑speak if needed
-  onSpeakEnd?: () => void;
 }
 
 export default function VoiceButton({ onTranscript }: VoiceButtonProps) {
   const [isRecording, setIsRecording] = useState(false);
-  const mediaRecorderRef = useRef<MediaRecorder | null>(null);
+  const recognitionRef = useRef<SpeechRecognition | null>(null);
 
-  const startRecording = async () => {
-    try {
-      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-      const mediaRecorder = new MediaRecorder(stream, { mimeType: "audio/webm" });
-      mediaRecorderRef.current = mediaRecorder;
-      const chunks: Blob[] = [];
+  const initRecognition = useCallback(() => {
+    if (!("webkitSpeechRecognition" in window || "SpeechRecognition" in window)) return;
+    const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+    recognitionRef.current = new SR();
+    recognitionRef.current.continuous = false;
+    recognitionRef.current.interimResults = true;
+    recognitionRef.current.lang = "en-US";
 
-      mediaRecorder.ondataavailable = (e) => chunks.push(e.data);
-      mediaRecorder.onstop = async () => {
-        const audioBlob = new Blob(chunks, { type: "audio/webm" });
-        const formData = new FormData();
-        formData.append("audio", audioBlob, "voice.webm");
+    recognitionRef.current.onresult = (e: SpeechRecognitionEvent) => {
+      let text = "";
+      for (let i = e.resultIndex; i < e.results.length; i++) {
+        text += e.results[i][0].transcript;
+      }
+      if (e.results[e.results.length - 1].isFinal) {
+        onTranscript(text);
+        stopRecording();
+      }
+    };
 
-        try {
-          const res = await fetch("/api/whisper", { method: "POST", body: formData });
-          const { text } = await res.json();
-          if (text) onTranscript(text);
-        } catch (err) {
-          console.error("Whisper error:", err);
-        }
+    recognitionRef.current.onerror = () => stopRecording();
+    recognitionRef.current.onend = () => stopRecording();
+  }, [onTranscript]);
 
-        stream.getTracks().forEach((track) => track.stop());
-        setIsRecording(false);
-      };
-
-      mediaRecorder.start();
-      setIsRecording(true);
-    } catch (err) {
-      console.error("Microphone access denied:", err);
-    }
+  const startRecording = () => {
+    if (!recognitionRef.current) initRecognition();
+    if (!recognitionRef.current) return;
+    setIsRecording(true);
+    recognitionRef.current.start();
   };
 
   const stopRecording = () => {
-    mediaRecorderRef.current?.stop();
+    setIsRecording(false);
+    recognitionRef.current?.stop();
   };
 
   return (
     <button
+      className={`dock-btn ${isRecording ? "recording" : ""}`}
+      title="Hold to talk"
       onMouseDown={startRecording}
       onMouseUp={stopRecording}
       onMouseLeave={stopRecording}
       onTouchStart={startRecording}
       onTouchEnd={stopRecording}
-      className={`p-2 rounded-full ${
-        isRecording ? "bg-red-400 animate-pulse" : "bg-[var(--primary)]"
-      }`}
-      title="Hold to talk"
     >
-      🎙️
+      <MicIcon size={22} />
     </button>
   );
 }

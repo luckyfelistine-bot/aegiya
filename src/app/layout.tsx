@@ -1,17 +1,30 @@
 import './globals.css';
 import type { Metadata } from 'next';
 import { ThemeProvider } from '@/components/ThemePicker';
+import InstallButton from '@/components/InstallButton';
 
 export const metadata: Metadata = {
-  title: 'Byeol — Your Personal Star',
+  title: 'Byeol – Dal\'s Personal Star',
   description: 'Crafted with love by Dal for Maureen',
+  manifest: '/manifest.json',
+  themeColor: '#ec4899',
 };
 
-export default function RootLayout({ children }: { children: React.ReactNode }) {
+export default function RootLayout({
+  children,
+}: {
+  children: React.ReactNode;
+}) {
   return (
     <html lang="en">
-      <body>
-        <ThemeProvider>{children}</ThemeProvider>
+      <head>
+        <link rel="manifest" href="/manifest.json" />
+      </head>
+      <body className="antialiased">
+        <ThemeProvider>
+          {children}
+          <InstallButton />
+        </ThemeProvider>
       </body>
     </html>
   );

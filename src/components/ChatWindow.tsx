@@ -35,8 +35,8 @@ export default function ChatWindow({ onCodeUpdate, setIsLoading }: ChatWindowPro
   ]);
   const [input, setInput] = useState("");
   const [autoSpeak, setAutoSpeak] = useState(true);
-  const chatEndRef = useRef<<HTMLDivElement>(null);
-  const fileInputRef = useRef<<HTMLInputElement>(null);
+  const chatEndRef = useRef<HTMLDivElement>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     chatEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -177,7 +177,7 @@ export default function ChatWindow({ onCodeUpdate, setIsLoading }: ChatWindowPro
     }
   };
 
-  const handleFileUpload = async (e: React.ChangeEvent<<HTMLInputElement>) => {
+  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
     setIsLoading(true);

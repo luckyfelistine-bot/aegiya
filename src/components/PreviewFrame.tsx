@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useRef, useEffect } from "react";
-import { RefreshIcon, ExternalIcon } from "./SvgIcons";
+import { RefreshIcon, ExternalLinkIcon as ExternalIcon } from "./SvgIcons";
 
 interface PreviewFrameProps {
   html: string;

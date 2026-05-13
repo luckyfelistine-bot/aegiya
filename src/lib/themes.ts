@@ -6,17 +6,21 @@
 
 export interface Theme {
   name: string;
-  primary: string;   // main accent
-  secondary: string; // background panels
-  surface: string;   // chat bubbles
+  label: string;         // display name (e.g., "Mystic Pink")
+  mood: string;          // mood description (e.g., "Romantic")
+  primary: string;       // main accent
+  secondary: string;     // background panels
+  surface: string;       // chat bubbles
   text: string;
   border: string;
-  swatch: string;    // CSS gradient or solid color for preview swatch
+  swatch: string;        // CSS gradient or solid color for preview
 }
 
 export const builtInThemes: Theme[] = [
   {
-    name: "Mystic Pink (Default)",
+    name: "Mystic Pink",
+    label: "Mystic Pink",
+    mood: "Romantic & Soft",
     primary: "#ec4899",
     secondary: "#fbcfe8",
     surface: "#fdf2f8",
@@ -26,6 +30,8 @@ export const builtInThemes: Theme[] = [
   },
   {
     name: "Purple Night",
+    label: "Purple Night",
+    mood: "Mysterious & Deep",
     primary: "#a855f7",
     secondary: "#ede9fe",
     surface: "#f5f3ff",
@@ -35,6 +41,8 @@ export const builtInThemes: Theme[] = [
   },
   {
     name: "Ocean Calm",
+    label: "Ocean Calm",
+    mood: "Serene & Peaceful",
     primary: "#0ea5e9",
     secondary: "#e0f2fe",
     surface: "#f0f9ff",
@@ -44,6 +52,8 @@ export const builtInThemes: Theme[] = [
   },
   {
     name: "Sunset Glow",
+    label: "Sunset Glow",
+    mood: "Warm & Energetic",
     primary: "#f97316",
     secondary: "#ffedd5",
     surface: "#fff7ed",
@@ -53,6 +63,8 @@ export const builtInThemes: Theme[] = [
   },
   {
     name: "Mint Forest",
+    label: "Mint Forest",
+    mood: "Fresh & Natural",
     primary: "#10b981",
     secondary: "#d1fae5",
     surface: "#ecfdf5",
@@ -61,7 +73,9 @@ export const builtInThemes: Theme[] = [
     swatch: "linear-gradient(135deg, #10b981, #d1fae5)"
   },
   {
-    name: "Dark Star (Night Owl)",
+    name: "Dark Star",
+    label: "Dark Star",
+    mood: "Night Owl",
     primary: "#f472b6",
     secondary: "#1e1b4b",
     surface: "#111827",
@@ -71,6 +85,8 @@ export const builtInThemes: Theme[] = [
   },
   {
     name: "Cream Rose",
+    label: "Cream Rose",
+    mood: "Delicate & Sweet",
     primary: "#f43f5e",
     secondary: "#ffe4e6",
     surface: "#fff1f2",
@@ -80,6 +96,8 @@ export const builtInThemes: Theme[] = [
   },
   {
     name: "Lavender Dream",
+    label: "Lavender Dream",
+    mood: "Calm & Dreamy",
     primary: "#8b5cf6",
     secondary: "#e9d5ff",
     surface: "#f5f3ff",
@@ -89,7 +107,7 @@ export const builtInThemes: Theme[] = [
   }
 ];
 
-// Alias for ThemePicker (which imports 'constellations')
+// Alias for ThemePicker (imports 'constellations')
 export const constellations = builtInThemes;
 
 export function getDefaultTheme(): Theme {

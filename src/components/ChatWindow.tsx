@@ -266,21 +266,21 @@ export default function ChatWindow({ isOpen, onClose }: ChatWindowProps) {
     [messages, isLoading]
   );
 
-  const handleVoiceInput = async () => {
+  const handleVoiceInput = () => {
     if (isRecording) return;
     setIsRecording(true);
-    try {
-      const text = await startSpeechRecognition();
-      if (text) {
-        setInput(text);
-        await sendMessage(text);
+    startSpeechRecognition(
+      async (text: string) => {
+        if (text) {
+          setInput(text);
+          await sendMessage(text);
+        }
+        setIsRecording(false);
+      },
+      () => {
+        setIsRecording(false);
       }
-    } catch (e: any) {
-      console.error("Voice input error:", e);
-      setError("Voice recognition failed. Please try typing instead.");
-    } finally {
-      setIsRecording(false);
-    }
+    );
   };
 
   const handleFileUpload = async (

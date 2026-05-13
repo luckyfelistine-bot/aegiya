@@ -88,6 +88,7 @@ export default function CosmosBackground() {
     }
 
     function drawNebulaOrbs(time: number) {
+      if (!canvas || !ctx) return;
       const w = canvas.width;
       const h = canvas.height;
       const orbs = [
@@ -114,6 +115,7 @@ export default function CosmosBackground() {
     }
 
     function drawConstellationLines(w: number, h: number) {
+      if (!ctx) return;
       const threshold = 0.12;
       ctx.strokeStyle = "rgba(0, 240, 255, 0.06)";
       ctx.lineWidth = 0.5;

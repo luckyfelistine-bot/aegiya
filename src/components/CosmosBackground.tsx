@@ -50,6 +50,7 @@ export default function CosmosBackground() {
     }
 
     function resize() {
+      if (!canvas) return;
       canvas.width = window.innerWidth;
       canvas.height = window.innerHeight;
       initStars();
@@ -132,6 +133,7 @@ export default function CosmosBackground() {
     }
 
     function animate() {
+      if (!canvas || !ctx) return;
       const w = canvas.width;
       const h = canvas.height;
       const time = Date.now() * 0.001;

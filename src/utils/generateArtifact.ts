@@ -20,7 +20,6 @@ import {
   Header,
   Footer,
   PageNumber,
-  BorderStyle,
 } from 'docx';
 
 /* ─────────────── Types ─────────────── */
@@ -190,7 +189,6 @@ function downloadTextFile(content: string, filename: string, mimeType: string): 
 }
 
 function sanitizeForPDF(text: string): string {
-  // Remove HTML tags for PDF plain-text rendering
   return text.replace(/<<[^>]*>/g, '');
 }
 
@@ -241,7 +239,6 @@ export async function generateEnhancedPDF(
       y = 20;
     }
 
-    // Markdown-style heading detection
     if (line.startsWith('# ')) {
       doc.setFontSize(16);
       doc.setTextColor(45, 55, 72);
@@ -450,7 +447,6 @@ function parseMarkdownToDOCX(text: string): Paragraph[] {
         })
       );
     } else if (line.startsWith('```')) {
-      // Skip fence lines; actual code blocks handled as plain text if inline
       out.push(new Paragraph({ text: '' }));
     } else {
       out.push(

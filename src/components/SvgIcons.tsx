@@ -217,6 +217,30 @@ export const ErrorIcon = ({ style, className }: IconProps) => (
   </svg>
 );
 
+export const DoveIcon = (props: React.SVGProps<SVGSVGElement>) => (
+  <svg
+    viewBox="0 0 24 24"
+    fill="none"
+    stroke="currentColor"
+    strokeWidth="2"
+    strokeLinecap="round"
+    strokeLinejoin="round"
+    {...props}
+  >
+    {/* Dove body */}
+    <path d="M12 5C8 5 5 7 5 10c0 3 3 5 7 5s7-2 7-5c0-3-3-5-7-5z" />
+    {/* Wing */}
+    <path d="M12 15v4M8 19h8" />
+    <path d="M4 10c-2 0-3 1-3 3s1 3 3 3" />
+    <path d="M20 10c2 0 3 1 3 3s-1 3-3 3" />
+    <path d="M4 13c1-2 2-3 4-3M20 13c-1-2-2-3-4-3" />
+    {/* Eye */}
+    <circle cx="12" cy="10" r="1" fill="currentColor" />
+    {/* Olive branch (optional) */}
+    <path d="M15 11l2-2M16 9l1-1" stroke="currentColor" strokeWidth="1.5" />
+  </svg>
+);
+
 export const CloseIcon = ({ style, className }: IconProps) => (
   <svg viewBox="0 0 24 24" style={style} className={className}>
     <line x1="18" y1="6" x2="6" y2="18" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>

@@ -1,6 +1,8 @@
 "use client";
 import { useState, useRef, useEffect } from "react";
 import { generatePDF, generateDOCX } from "@/utils/generateArtifact";
+import { speakText } from "@/utils/speech";
+import VoiceButton from "@/components/VoiceButton";
 
 interface Message {
   role: "user" | "assistant";
@@ -20,6 +22,7 @@ export default function ChatWindow({ onCodeUpdate, setIsLoading }: ChatWindowPro
     },
   ]);
   const [input, setInput] = useState("");
+  const [autoSpeak, setAutoSpeak] = useState(true);
   const chatEndRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -27,7 +30,56 @@ export default function ChatWindow({ onCodeUpdate, setIsLoading }: ChatWindowPro
     chatEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
 
-  // Send a message (including potential file text)
+  // ---------- Memory Update ----------
+  const updateMemory = async (assistantContent: string) => {
+    const summary = assistantContent.slice(0, 300);
+    try {
+      await fetch("/api/memory", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          recent_chat_summary: summary,
+          total_lessons_completed: messages.length,
+        }),
+      });
+    } catch (err) {
+      console.error("Memory update failed:", err);
+    }
+  };
+
+  // ---------- Artifact Extraction ----------
+  const extractLiveContent = (content: string) => {
+    // Code blocks for the editor (```html, ```css, ```js)
+    const codeBlockRegex = /```(html|css|javascript|js)([\s\S]*?)```/g;
+    let match;
+    while ((match = codeBlockRegex.exec(content)) !== null) {
+      const code = match[2].trim();
+      onCodeUpdate(code);
+    }
+
+    // Artifact blocks (```artifact)
+    const artifactRegex = /```artifact\n([\s\S]*?)```/g;
+    while ((match = artifactRegex.exec(content)) !== null) {
+      try {
+        const artifact = JSON.parse(match[1].trim());
+        handleArtifact(artifact);
+      } catch (err) {
+        console.warn("Invalid artifact JSON", match[1]);
+      }
+    }
+  };
+
+  const handleArtifact = (artifact: any) => {
+    if (artifact.type === "html") {
+      onCodeUpdate(artifact.content);
+    } else if (artifact.type === "pdf") {
+      generatePDF(artifact.content, artifact.title || "Byeol_Study_Artifact");
+    } else if (artifact.type === "docx") {
+      generateDOCX(artifact.content, artifact.title || "Byeol_Study_Artifact");
+    }
+  };
+
+  // ---------- Send Message (with streaming) ----------
   const sendMessage = async (content: string) => {
     if (!content.trim()) return;
     const userMsg: Message = { role: "user", content };
@@ -67,7 +119,6 @@ export default function ChatWindow({ onCodeUpdate, setIsLoading }: ChatWindowPro
                 copy[copy.length - 1] = { role: "assistant", content: assistantContent };
                 return copy;
               });
-              // Real‑time code and artifact extraction
               extractLiveContent(assistantContent);
             } catch (e) {
               // ignore malformed chunks
@@ -75,8 +126,13 @@ export default function ChatWindow({ onCodeUpdate, setIsLoading }: ChatWindowPro
           }
         }
       }
-      // After full response, do a final extraction
+
+      // After full reply, do final extraction and memory + voice
       extractLiveContent(assistantContent);
+      updateMemory(assistantContent);
+      if (autoSpeak && assistantContent.length > 0) {
+        speakText(assistantContent);
+      }
     } catch (error) {
       console.error(error);
       setMessages((prev) => [
@@ -88,39 +144,7 @@ export default function ChatWindow({ onCodeUpdate, setIsLoading }: ChatWindowPro
     }
   };
 
-  const extractLiveContent = (content: string) => {
-    // 1. Extract code blocks for the editor (```html, ```css, ```javascript)
-    const codeBlockRegex = /```(html|css|javascript|js)([\s\S]*?)```/g;
-    let match;
-    while ((match = codeBlockRegex.exec(content)) !== null) {
-      const code = match[2].trim();
-      onCodeUpdate(code);
-    }
-
-    // 2. Extract artifact blocks
-    const artifactRegex = /```artifact\n([\s\S]*?)```/g;
-    while ((match = artifactRegex.exec(content)) !== null) {
-      try {
-        const artifact = JSON.parse(match[1].trim());
-        handleArtifact(artifact);
-      } catch (err) {
-        console.warn("Invalid artifact JSON", match[1]);
-      }
-    }
-  };
-
-  const handleArtifact = (artifact: any) => {
-    if (artifact.type === "html") {
-      // Render in preview panel
-      onCodeUpdate(artifact.content);
-    } else if (artifact.type === "pdf") {
-      generatePDF(artifact.content, artifact.title || "Byeol_Study_Artifact");
-    } else if (artifact.type === "docx") {
-      generateDOCX(artifact.content, artifact.title || "Byeol_Study_Artifact");
-    }
-  };
-
-  // Handle file upload
+  // ---------- File Upload ----------
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -135,7 +159,6 @@ export default function ChatWindow({ onCodeUpdate, setIsLoading }: ChatWindowPro
         setMessages((prev) => [...prev, { role: "assistant", content: `File error: ${error}` }]);
         return;
       }
-      // Prepend file context and ask for summary
       const fileMessage = `I've uploaded a file: "${file.name}". Please summarize it, generate 5 practice questions, and create an interactive study artifact if helpful.\n\n---\n${text}\n---`;
       await sendMessage(fileMessage);
     } catch (err) {
@@ -148,9 +171,13 @@ export default function ChatWindow({ onCodeUpdate, setIsLoading }: ChatWindowPro
 
   return (
     <div className="flex flex-col h-full p-4">
+      {/* Messages */}
       <div className="flex-1 overflow-y-auto space-y-4">
         {messages.map((msg, i) => (
-          <div key={i} className={`flex ${msg.role === "user" ? "justify-end" : "justify-start"}`}>
+          <div
+            key={i}
+            className={`flex ${msg.role === "user" ? "justify-end" : "justify-start"}`}
+          >
             <div
               className={`max-w-[80%] p-3 rounded-2xl ${
                 msg.role === "user"
@@ -164,8 +191,24 @@ export default function ChatWindow({ onCodeUpdate, setIsLoading }: ChatWindowPro
         ))}
         <div ref={chatEndRef} />
       </div>
+
+      {/* Input Row */}
       <div className="mt-4 flex gap-2 items-center">
-        {/* File upload button */}
+        {/* Voice Input */}
+        <VoiceButton onTranscript={(text) => sendMessage(text)} />
+
+        {/* Mute/Unmute Auto‑Voice */}
+        <button
+          onClick={() => setAutoSpeak(!autoSpeak)}
+          className={`p-2 rounded-full border transition ${
+            autoSpeak ? "bg-[var(--primary)] text-white" : "bg-[var(--surface)]"
+          }`}
+          title={autoSpeak ? "Mute voice" : "Unmute voice"}
+        >
+          {autoSpeak ? "🔊" : "🔇"}
+        </button>
+
+        {/* File Upload */}
         <button
           onClick={() => fileInputRef.current?.click()}
           className="p-2 rounded-full bg-[var(--surface)] border border-[var(--border)]"
@@ -180,6 +223,8 @@ export default function ChatWindow({ onCodeUpdate, setIsLoading }: ChatWindowPro
           accept=".pdf,.docx,.txt"
           onChange={handleFileUpload}
         />
+
+        {/* Text Input */}
         <input
           type="text"
           value={input}
@@ -189,6 +234,8 @@ export default function ChatWindow({ onCodeUpdate, setIsLoading }: ChatWindowPro
           className="flex-1 p-3 rounded-xl border focus:outline-none"
           style={{ borderColor: "var(--border)", backgroundColor: "var(--surface)" }}
         />
+
+        {/* Send Button */}
         <button
           onClick={() => sendMessage(input)}
           className="px-4 py-2 rounded-xl text-white font-semibold"

@@ -80,6 +80,9 @@ export const builtInThemes: Theme[] = [
   }
 ];
 
+// ✅ This alias is needed because ThemePicker.tsx imports 'constellations'
+export const constellations = builtInThemes;
+
 export function getDefaultTheme(): Theme {
   return builtInThemes[0]; // Mystic Pink
 }

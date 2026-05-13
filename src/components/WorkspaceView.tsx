@@ -2,6 +2,7 @@
 
 import { useState, useCallback, useEffect } from "react";
 import dynamic from "next/dynamic";
+import { html } from "@codemirror/lang-html";           // ✅ static import
 import { memory } from "@/lib/memory";
 import {
   CopyIcon,
@@ -11,13 +12,9 @@ import {
   ExternalLinkIcon,
 } from "@/components/SvgIcons";
 
+// ✅ dynamic import for the React component (still fine)
 const CodeMirror = dynamic(
   () => import("@uiw/react-codemirror").then((mod) => mod.default),
-  { ssr: false }
-);
-
-const htmlLang = dynamic(
-  () => import("@codemirror/lang-html").then((mod) => mod.html),
   { ssr: false }
 );
 
@@ -77,7 +74,8 @@ export default function WorkspaceView({ showToast }: WorkspaceViewProps) {
   const [code, setCode] = useState(DEFAULT_CODE);
   const [previewKey, setPreviewKey] = useState(0);
   const [error, setError] = useState<string | null>(null);
-  const [extensions, setExtensions] = useState<any[]>([]);
+  // ✅ extensions are now static and synchronous
+  const extensions = [html()];
 
   // Load saved code
   useEffect(() => {
@@ -90,11 +88,6 @@ export default function WorkspaceView({ showToast }: WorkspaceViewProps) {
       }
     };
     loadCode();
-
-    // Load CodeMirror extensions
-    htmlLang().then((html) => {
-      setExtensions([html()]);
-    });
   }, []);
 
   // Auto-save code
@@ -102,7 +95,6 @@ export default function WorkspaceView({ showToast }: WorkspaceViewProps) {
     (value: string) => {
       setCode(value);
       setError(null);
-      // Debounced save
       const timeout = setTimeout(() => {
         memory.setProfile("last_code", value).catch(console.error);
       }, 2000);
@@ -168,26 +160,19 @@ export default function WorkspaceView({ showToast }: WorkspaceViewProps) {
           </div>
         </div>
         <div style={{ flex: 1, overflow: "hidden", minHeight: 0 }}>
-          {extensions.length > 0 ? (
-            <CodeMirror
-              value={code}
-              height="100%"
-              theme="dark"
-              extensions={extensions}
-              onChange={handleCodeChange}
-              basicSetup={{
-                lineNumbers: true,
-                highlightActiveLineGutter: true,
-                highlightActiveLine: true,
-                foldGutter: false,
-              }}
-            />
-          ) : (
-            <div className="view-loading">
-              <div className="loading-spinner" />
-              <p>Loading editor...</p>
-            </div>
-          )}
+          <CodeMirror
+            value={code}
+            height="100%"
+            theme="dark"
+            extensions={extensions}
+            onChange={handleCodeChange}
+            basicSetup={{
+              lineNumbers: true,
+              highlightActiveLineGutter: true,
+              highlightActiveLine: true,
+              foldGutter: false,
+            }}
+          />
         </div>
       </div>
 

@@ -4,8 +4,17 @@ import { groq, CHAT_MODEL } from '@/lib/groq';
 import { buildSystemPrompt } from '@/lib/systemPrompt';
 import { defaultMemory, DalMemory } from '@/lib/systemPrompt';
 
+// Force dynamic rendering – no static generation
+export const dynamic = 'force-dynamic';
+
 export async function GET() {
   try {
+    // Safeguard: if KV is not configured, log and return early
+    if (!process.env.KV_REST_API_URL || !process.env.KV_REST_API_TOKEN) {
+      console.error('KV environment variables missing – skipping cron job');
+      return NextResponse.json({ error: 'KV not configured' }, { status: 500 });
+    }
+
     const memory: DalMemory = (await kv.get('dal-memory')) || defaultMemory;
     const systemPrompt = buildSystemPrompt(undefined, memory);
 

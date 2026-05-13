@@ -77,7 +77,7 @@ const MIME_TYPES: Record<string, string> = {
   crystal: 'text/x-crystal', v: 'text/x-vlang', zip: 'application/zip',
 };
 
-const EXTENSIONS: Record<<ArtifactType, string> = {
+const EXTENSIONS: Record<ArtifactType, string> = {
   pdf: 'pdf', docx: 'docx', txt: 'txt', md: 'md', html: 'html', latex: 'tex',
   css: 'css', scss: 'scss', sass: 'sass', less: 'less', svg: 'svg', xml: 'xml',
   xsl: 'xsl', rss: 'rss', atom: 'atom', js: 'js', ts: 'ts', jsx: 'jsx', tsx: 'tsx',
@@ -95,7 +95,7 @@ const EXTENSIONS: Record<<ArtifactType, string> = {
 export async function generateArtifact(config: ArtifactConfig): Promise<void> {
   const { type, content, title = 'Byeol_Artifact', filename, files, options } = config;
   const safeName = (filename || title)
-    .replace(/[<>:"/\\|?*\s]+/g, '_')
+    .replace(/[<>:"/\|?*\s]+/g, '_')
     .replace(/_+/g, '_')
     .replace(/^_|_$/g, '');
 
@@ -125,7 +125,7 @@ function downloadTextFile(content: string, filename: string, mimeType: string): 
 }
 
 function sanitizeForPDF(text: string): string {
-  return text.replace(/<<[^>]*>/g, '');
+  return text.replace(/<[^>]*>/g, '');
 }
 
 export async function generateEnhancedPDF(

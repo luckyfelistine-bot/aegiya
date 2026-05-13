@@ -10,6 +10,27 @@ interface DBSchema {
   milestones: { id?: number; title: string; description: string; date: number };
 }
 
+// ✅ Added DashboardPrefs interface and default values
+export interface DashboardPrefs {
+  showCoding: boolean;
+  showStatus: boolean;
+  showLesson: boolean;
+  showConstellation: boolean;
+  showVoice: boolean;
+  showFiles: boolean;
+  showProgress: boolean;
+}
+
+export const defaultDashboardPrefs: DashboardPrefs = {
+  showCoding: true,
+  showStatus: true,
+  showLesson: true,
+  showConstellation: true,
+  showVoice: true,
+  showFiles: true,
+  showProgress: true,
+};
+
 class MemorySystem {
   private db: IDBDatabase | null = null;
   private initPromise: Promise<IDBDatabase> | null = null;
@@ -145,13 +166,13 @@ class MemorySystem {
     });
   }
 
-  // Dashboard preferences
-  async getDashboardPrefs(): Promise<any> {
-    return this.getProfile("dashboard_prefs");
+  async getDashboardPrefs(): Promise<DashboardPrefs> {
+    const prefs = await this.getProfile("dashboard_prefs");
+    return prefs || defaultDashboardPrefs;
   }
 
-  async setDashboardPrefs(prefs: any): Promise<void> {
-    return this.setProfile("dashboard_prefs", prefs);
+  async setDashboardPrefs(prefs: DashboardPrefs): Promise<void> {
+    await this.setProfile("dashboard_prefs", prefs);
   }
 }
 

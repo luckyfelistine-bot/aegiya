@@ -1,7 +1,4 @@
 {
-  "build": {
-    "cache": false
-  },
   "crons": [
     {
       "path": "/api/cron/daily-lesson",

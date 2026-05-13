@@ -45,7 +45,6 @@ export default function FileUploader() {
         return;
       }
       console.log('File processed:', data);
-      // Dispatch a custom event so ChatWindow can pick it up
       window.dispatchEvent(new CustomEvent('byeol:fileProcessed', { detail: data }));
     } catch (err) {
       console.error('Upload failed:', err);

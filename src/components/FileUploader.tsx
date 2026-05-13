@@ -22,7 +22,7 @@ const ALLOWED_EXTS = [
 ];
 
 export default function FileUploader() {
-  const fileInputRef = useRef<<HTMLInputElement>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const [dragOver, setDragOver] = useState(false);
 
   const processFile = async (file: File) => {
@@ -52,7 +52,7 @@ export default function FileUploader() {
     }
   };
 
-  const handleFile = async (e: React.ChangeEvent<<HTMLInputElement>) => {
+  const handleFile = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
     await processFile(file);

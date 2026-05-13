@@ -4,7 +4,7 @@ import React, { useState, useEffect } from "react";
 import { memory, DashboardPrefs, defaultDashboardPrefs } from "@/lib/memory";
 import {
   CodeIcon, StarIcon, CalendarIcon, ConstellationIcon,
-  MicIcon, FileIcon, BarChartIcon, SparklesIcon, CloseIcon, SettingsIcon
+  MicIcon, FileIcon, DoveIcon, SparklesIcon, CloseIcon, SettingsIcon
 } from "./SvgIcons";
 
 interface DashboardProps {
@@ -88,7 +88,7 @@ export default function Dashboard({ onNavigate, onOpenLesson }: DashboardProps) 
     {
       key: "showProgress" as const,
       size: "bento-wide",
-      icon: <BarChartIcon size={20} />,
+      icon: <DoveIcon size={20} />,
       title: "Your Progress",
       desc: `You've completed ${stats.projects} coding micro-projects and ${stats.sessions} medical study sessions. Byeol is incredibly proud of you, Dal.`,
       meta: `${stats.projects} projects • ${stats.sessions} sessions • ${stats.streak} day streak`,

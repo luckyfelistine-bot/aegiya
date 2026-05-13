@@ -1,194 +1,50 @@
 "use client";
-
-import React, { useState, useRef, useEffect, useCallback } from "react";
-import { memory } from "@/lib/memory";
-import { useToast } from "./Toast";
-import {
-  PaperclipIcon, MicIcon, SendIcon, VolumeIcon, VolumeMuteIcon,
-  StarIcon, CloseIcon
-} from "./SvgIcons";
+import { useState, useRef, useEffect } from "react";
+import { generateArtifact, generateSmartArtifact, ArtifactType } from "@/utils/generateArtifact";
+import { speakText } from "@/utils/speech";
+import VoiceButton from "@/components/VoiceButton";
 
 interface Message {
   role: "user" | "assistant";
   content: string;
-  timestamp?: number;
 }
 
 interface ChatWindowProps {
-  onCodeUpdate: (code: string) => void;
+  onCodeUpdate: (code: string, language?: string) => void;
   setIsLoading: (loading: boolean) => void;
 }
+
+const CODE_LANGUAGES = new Set([
+  'html','css','javascript','js','typescript','ts','jsx','tsx','python','py',
+  'json','xml','yaml','yml','sql','bash','sh','shell','powershell','ps1',
+  'c','cpp','csharp','cs','java','go','rust','rs','swift','kotlin','kt',
+  'ruby','rb','php','lua','r','matlab','scala','clojure','clj','haskell','hs',
+  'erlang','erl','elixir','ex','fsharp','fs','vb','asm','perl','pl','groovy',
+  'coffeescript','coffee','elm','nim','crystal','cr','vlang','v','dart',
+  'vue','svelte','scss','sass','less','graphql','gql','prisma','dockerfile',
+  'makefile','cmake','markdown','md','latex','tex','bib','csv','tsv','ini','env',
+  'toml','log','diff','patch','http','regex','nginx','apache','apacheconf',
+]);
 
 export default function ChatWindow({ onCodeUpdate, setIsLoading }: ChatWindowProps) {
   const [messages, setMessages] = useState<Message[]>([
     {
       role: "assistant",
       content: "Hi Dal! I'm Byeol, your personal star. ✨ How can I help you with coding or studies today?",
-      timestamp: Date.now(),
     },
   ]);
   const [input, setInput] = useState("");
   const [autoSpeak, setAutoSpeak] = useState(true);
-  const [isRecording, setIsRecording] = useState(false);
-  const [isTyping, setIsTyping] = useState(false);
-  const chatEndRef = useRef<HTMLDivElement>(null);
-  const fileInputRef = useRef<HTMLInputElement>(null);
-  const { showToast, dismissToast } = useToast();
-  const abortRef = useRef<AbortController | null>(null);
-  const synthRef = useRef<SpeechSynthesis | null>(null);
-  const recognitionRef = useRef<SpeechRecognition | null>(null);
-
-  // Load persisted messages
-  useEffect(() => {
-    memory.getMessages(50).then((saved) => {
-      if (saved.length > 0) {
-        setMessages(saved.map((m) => ({ role: m.role, content: m.content, timestamp: m.timestamp })));
-      }
-    });
-    synthRef.current = window.speechSynthesis;
-  }, []);
+  const chatEndRef = useRef<<HTMLDivElement>(null);
+  const fileInputRef = useRef<<HTMLInputElement>(null);
 
   useEffect(() => {
     chatEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
 
-  // ─── STREAMING CHAT WITH GROQ API ───
-  const sendMessage = useCallback(
-    async (content: string) => {
-      if (!content.trim()) return;
-
-      const userMsg: Message = { role: "user", content, timestamp: Date.now() };
-      const updatedMessages = [...messages, userMsg];
-      setMessages(updatedMessages);
-      setInput("");
-      setIsLoading(true);
-      setIsTyping(true);
-
-      // Save user message
-      await memory.saveMessage({ role: "user", content, timestamp: Date.now() });
-
-      try {
-        abortRef.current = new AbortController();
-
-        const res = await fetch("/api/chat", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ messages: updatedMessages }),
-          signal: abortRef.current.signal,
-        });
-
-        if (!res.ok) {
-          const err = await res.json().catch(() => ({}));
-          throw new Error(err.error || "API error");
-        }
-
-        if (!res.body) throw new Error("No response body");
-
-        const reader = res.body.getReader();
-        const decoder = new TextDecoder();
-        let assistantContent = "";
-
-        setMessages((prev) => [...prev, { role: "assistant", content: "", timestamp: Date.now() }]);
-
-        while (true) {
-          const { done, value } = await reader.read();
-          if (done) break;
-
-          const chunk = decoder.decode(value, { stream: true });
-          const lines = chunk.split("\n");
-
-          for (const line of lines) {
-            if (!line.trim()) continue;
-            if (line.startsWith("data: ")) {
-              const data = line.slice(6);
-              if (data === "[DONE]" || data === "[TRUNCATED]") continue;
-              try {
-                const parsed = JSON.parse(data);
-                const text = parsed.choices?.[0]?.delta?.content || parsed.content || "";
-                if (!text) continue;
-                assistantContent += text;
-
-                setMessages((prev) => {
-                  const copy = [...prev];
-                  copy[copy.length - 1] = {
-                    role: "assistant",
-                    content: assistantContent,
-                    timestamp: Date.now(),
-                  };
-                  return copy;
-                });
-
-                extractLiveContent(assistantContent);
-              } catch {
-                // ignore malformed chunks
-              }
-            }
-          }
-        }
-
-        // Final extraction
-        extractLiveContent(assistantContent);
-
-        // Save assistant message
-        await memory.saveMessage({
-          role: "assistant",
-          content: assistantContent,
-          timestamp: Date.now(),
-        });
-
-        // Update memory summary
-        await updateMemory(assistantContent);
-
-        // Auto-speak
-        if (autoSpeak && assistantContent.length > 0) {
-          speakText(assistantContent);
-        }
-      } catch (error: any) {
-        if (error.name === "AbortError") return;
-        console.error(error);
-        showToast("Oops", "I'm having a moment, Dal. Could you try again? 💛", "error");
-        setMessages((prev) => [
-          ...prev,
-          {
-            role: "assistant",
-            content: "I'm having a moment, Dal. Could you try again? 💛",
-            timestamp: Date.now(),
-          },
-        ]);
-      } finally {
-        setIsLoading(false);
-        setIsTyping(false);
-        abortRef.current = null;
-      }
-    },
-    [messages, autoSpeak, setIsLoading, showToast]
-  );
-
-  const extractLiveContent = (content: string) => {
-    // Extract code blocks for editor
-    const codeBlockRegex = /```(html|css|javascript|js)([\s\S]*?)```/g;
-    let match;
-    while ((match = codeBlockRegex.exec(content)) !== null) {
-      const code = match[2].trim();
-      onCodeUpdate(code);
-    }
-
-    // Extract artifact blocks
-    const artifactRegex = /```artifact\n([\s\S]*?)```/g;
-    while ((match = artifactRegex.exec(content)) !== null) {
-      try {
-        const artifact = JSON.parse(match[1].trim());
-        if (artifact.type === "html") {
-          onCodeUpdate(artifact.content);
-        }
-      } catch {
-        // ignore invalid artifact
-      }
-    }
-  };
-
-  const updateMemory = async (content: string) => {
-    const summary = content.slice(0, 300);
+  // ---------- Memory Update ----------
+  const updateMemory = async (assistantContent: string) => {
+    const summary = assistantContent.slice(0, 300);
     try {
       await fetch("/api/memory", {
         method: "POST",
@@ -203,68 +59,132 @@ export default function ChatWindow({ onCodeUpdate, setIsLoading }: ChatWindowPro
     }
   };
 
-  // ─── SPEECH SYNTHESIS ───
-  const speakText = (text: string) => {
-    if (!synthRef.current) return;
-    synthRef.current.cancel();
-    const utter = new SpeechSynthesisUtterance(text);
-    utter.rate = 0.9;
-    utter.pitch = 1.1;
-    const voices = synthRef.current.getVoices();
-    const preferred = voices.find(
-      (v) =>
-        v.name.includes("Samantha") ||
-        v.name.includes("Karen") ||
-        v.name.includes("Victoria") ||
-        (v.lang === "en-US" && v.name.includes("Google"))
-    );
-    if (preferred) utter.voice = preferred;
-    synthRef.current.speak(utter);
-  };
+  // ---------- Live Extraction ----------
+  const extractLiveContent = (content: string) => {
+    // 1. Code blocks -> live editor
+    const codeBlockRegex = /```(\w+)?\n([\s\S]*?)```/g;
+    let match;
+    while ((match = codeBlockRegex.exec(content)) !== null) {
+      const lang = (match[1] || '').toLowerCase().trim();
+      const code = match[2].trim();
+      if (CODE_LANGUAGES.has(lang)) {
+        onCodeUpdate(code, lang);
+      }
+    }
 
-  // ─── VOICE INPUT ───
-  const initRecognition = () => {
-    if ("webkitSpeechRecognition" in window || "SpeechRecognition" in window) {
-      const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
-      recognitionRef.current = new SR();
-      recognitionRef.current.continuous = false;
-      recognitionRef.current.interimResults = true;
-      recognitionRef.current.lang = "en-US";
+    // 2. Artifact blocks (structured JSON)
+    const artifactRegex = /```artifact\n([\s\S]*?)```/g;
+    while ((match = artifactRegex.exec(content)) !== null) {
+      try {
+        const artifact = JSON.parse(match[1].trim());
+        handleArtifact(artifact);
+      } catch (err) {
+        console.warn("Invalid artifact JSON", match[1]);
+      }
+    }
 
-      recognitionRef.current.onresult = (e: SpeechRecognitionEvent) => {
-        let text = "";
-        for (let i = e.resultIndex; i < e.results.length; i++) {
-          text += e.results[i][0].transcript;
-        }
-        setInput(text);
-        if (e.results[e.results.length - 1].isFinal) {
-          sendMessage(text);
-          stopRecording();
-        }
-      };
-
-      recognitionRef.current.onerror = () => stopRecording();
-      recognitionRef.current.onend = () => stopRecording();
+    // 3. Inline file declarations: [FILE: name.ext] ... [/FILE]
+    const fileRegex = /\[FILE:\s*([^\]]+)\.([^\]]+)\]([\s\S]*?)\[\/FILE\]/g;
+    while ((match = fileRegex.exec(content)) !== null) {
+      const [, name, ext, fileContent] = match;
+      const type = ext.toLowerCase() as ArtifactType;
+      generateArtifact({
+        type,
+        content: fileContent.trim(),
+        filename: name,
+      }).catch(console.error);
     }
   };
 
-  const startRecording = () => {
-    if (!recognitionRef.current) initRecognition();
-    if (!recognitionRef.current) {
-      showToast("Voice Unavailable", "Speech recognition requires Chrome. Try typing instead!", "warning");
+  const handleArtifact = (artifact: any) => {
+    if (!artifact.type) return;
+
+    if (artifact.type === 'zip' && Array.isArray(artifact.files)) {
+      generateArtifact({
+        type: 'zip',
+        content: '',
+        title: artifact.title || 'Byeol_Bundle',
+        files: artifact.files,
+      }).catch(console.error);
       return;
     }
-    setIsRecording(true);
-    recognitionRef.current.start();
+
+    const type = artifact.type as ArtifactType;
+    generateArtifact({
+      type,
+      content: artifact.content || '',
+      title: artifact.title || 'Byeol_Study_Artifact',
+      filename: artifact.filename,
+      options: artifact.options,
+    }).catch(console.error);
   };
 
-  const stopRecording = () => {
-    setIsRecording(false);
-    recognitionRef.current?.stop();
+  // ---------- Send Message (Streaming) ----------
+  const sendMessage = async (content: string) => {
+    if (!content.trim()) return;
+    const userMsg: Message = { role: "user", content };
+    const updatedMessages = [...messages, userMsg];
+    setMessages(updatedMessages);
+    setInput("");
+    setIsLoading(true);
+
+    try {
+      const res = await fetch("/api/chat", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ messages: updatedMessages }),
+      });
+
+      if (!res.ok) throw new Error("API error");
+      const reader = res.body!.getReader();
+      const decoder = new TextDecoder();
+      let assistantContent = "";
+
+      setMessages((prev) => [...prev, { role: "assistant", content: "" }]);
+
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        const chunk = decoder.decode(value);
+        const lines = chunk.split("\n");
+        for (const line of lines) {
+          if (line.startsWith("data: ")) {
+            const data = line.slice(6);
+            if (data === "[DONE]" || data === "[TRUNCATED]") continue;
+            try {
+              const text = JSON.parse(data);
+              assistantContent += text;
+              setMessages((prev) => {
+                const copy = [...prev];
+                copy[copy.length - 1] = { role: "assistant", content: assistantContent };
+                return copy;
+              });
+              extractLiveContent(assistantContent);
+            } catch (e) {
+              // ignore malformed chunks
+            }
+          }
+        }
+      }
+
+      extractLiveContent(assistantContent);
+      updateMemory(assistantContent);
+      if (autoSpeak && assistantContent.length > 0) {
+        speakText(assistantContent);
+      }
+    } catch (error) {
+      console.error(error);
+      setMessages((prev) => [
+        ...prev,
+        { role: "assistant", content: "I'm having a moment, Dal. Could you try again? 💛" },
+      ]);
+    } finally {
+      setIsLoading(false);
+    }
   };
 
-  // ─── FILE UPLOAD ───
-  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+  // ---------- File Upload ----------
+  const handleFileUpload = async (e: React.ChangeEvent<<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
     setIsLoading(true);
@@ -273,103 +193,96 @@ export default function ChatWindow({ onCodeUpdate, setIsLoading }: ChatWindowPro
       const formData = new FormData();
       formData.append("file", file);
       const res = await fetch("/api/process-file", { method: "POST", body: formData });
-      const { text, error } = await res.json();
+      const { text, error, meta, wasTruncated } = await res.json();
+
       if (error) {
-        showToast("File Error", error, "error");
+        setMessages((prev) => [...prev, { role: "assistant", content: `File error: ${error}` }]);
         return;
       }
-      const fileMessage = `I've uploaded a file: "${file.name}". Please summarize it, generate 5 practice questions, and create an interactive study artifact if helpful.\n\n---\n${text}\n---`;
+
+      const truncNote = wasTruncated ? '\n\n[Note: File was truncated due to size.]' : '';
+      const metaNote = meta?.numpages ? `\n[PDF pages: ${meta.numpages}]` : '';
+      const fileMessage = `I've uploaded a file: "${file.name}"${metaNote}${truncNote}. Please summarize it, generate 5 practice questions, and create an interactive study artifact if helpful.\n\n---\n${text}\n---`;
+
       await sendMessage(fileMessage);
     } catch (err) {
-      showToast("Upload Failed", "Could not process the file. Please try again.", "error");
+      console.error(err);
+      setMessages((prev) => [...prev, { role: "assistant", content: "Failed to upload file. Please try again." }]);
     } finally {
       setIsLoading(false);
       if (fileInputRef.current) fileInputRef.current.value = "";
     }
   };
 
-  const formatTime = (ts?: number) => {
-    if (!ts) return "Just now";
-    return new Date(ts).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
-  };
-
   return (
-    <div className="chat-panel glass">
-      <div className="chat-header">
-        <div className="chat-avatar">
-          <StarIcon size={28} />
-        </div>
-        <div className="chat-name">Byeol</div>
-        <div className="chat-status">
-          <span className="status-dot" />
-          <span>Online — Dal's personal star</span>
-        </div>
-      </div>
-
-      <div className="chat-messages">
+    <div className="flex flex-col h-full p-4">
+      {/* Messages */}
+      <div className="flex-1 overflow-y-auto space-y-4">
         {messages.map((msg, i) => (
-          <div key={i} className={`msg ${msg.role}`}>
-            <div dangerouslySetInnerHTML={{ __html: msg.content.replace(/\n/g, "<br>") }} />
-            <div className="msg-time">{formatTime(msg.timestamp)}</div>
+          <div
+            key={i}
+            className={`flex ${msg.role === "user" ? "justify-end" : "justify-start"}`}
+          >
+            <div
+              className={`max-w-[80%] p-3 rounded-2xl ${
+                msg.role === "user"
+                  ? "bg-[var(--primary)] text-white"
+                  : "bg-white text-[var(--text)]"
+              }`}
+            >
+              <p className="whitespace-pre-wrap">{msg.content}</p>
+            </div>
           </div>
         ))}
-        {isTyping && (
-          <div className="typing-indicator">
-            <span /><span /><span />
-          </div>
-        )}
         <div ref={chatEndRef} />
       </div>
 
-      <div className="chat-input-area">
-        <div className="input-glass">
-          <button
-            className="input-btn"
-            title="Attach file"
-            onClick={() => fileInputRef.current?.click()}
-          >
-            <PaperclipIcon size={18} />
-          </button>
-          <input
-            ref={fileInputRef}
-            type="file"
-            className="hidden"
-            accept=".pdf,.docx,.txt,.html,.css,.js"
-            onChange={handleFileUpload}
-          />
+      {/* Input Row */}
+      <div className="mt-4 flex gap-2 items-center">
+        <VoiceButton onTranscript={(text) => sendMessage(text)} />
 
-          <button
-            className={`input-btn mic ${isRecording ? "recording" : ""}`}
-            title="Hold to talk"
-            onMouseDown={startRecording}
-            onMouseUp={stopRecording}
-            onMouseLeave={stopRecording}
-            onTouchStart={startRecording}
-            onTouchEnd={stopRecording}
-          >
-            <MicIcon size={18} />
-          </button>
+        <button
+          onClick={() => setAutoSpeak(!autoSpeak)}
+          className={`p-2 rounded-full border transition ${
+            autoSpeak ? "bg-[var(--primary)] text-white" : "bg-[var(--surface)]"
+          }`}
+          title={autoSpeak ? "Mute voice" : "Unmute voice"}
+        >
+          {autoSpeak ? "🔊" : "🔇"}
+        </button>
 
-          <input
-            type="text"
-            value={input}
-            onChange={(e) => setInput(e.target.value)}
-            onKeyDown={(e) => e.key === "Enter" && sendMessage(input)}
-            placeholder="Ask Byeol anything, Dal..."
-          />
+        <button
+          onClick={() => fileInputRef.current?.click()}
+          className="p-2 rounded-full bg-[var(--surface)] border border-[var(--border)]"
+          title="Upload a file"
+        >
+          📎
+        </button>
+        <input
+          ref={fileInputRef}
+          type="file"
+          className="hidden"
+          accept=".pdf,.docx,.txt,.md,.html,.css,.js,.ts,.jsx,.tsx,.py,.json,.csv,.xml,.yaml,.yml,.sql,.sh,.c,.cpp,.java,.go,.rs,.rb,.php,.lua,.r,.swift,.kt,.dart,.cs,.scss,.sass,.less,.vue,.svelte,.ini,.env,.toml,.log,.tex,.xlsx,.xls"
+          onChange={handleFileUpload}
+        />
 
-          <button
-            className="input-btn"
-            title={autoSpeak ? "Mute voice" : "Unmute voice"}
-            onClick={() => setAutoSpeak(!autoSpeak)}
-          >
-            {autoSpeak ? <VolumeIcon size={18} /> : <VolumeMuteIcon size={18} />}
-          </button>
+        <input
+          type="text"
+          value={input}
+          onChange={(e) => setInput(e.target.value)}
+          onKeyDown={(e) => e.key === "Enter" && sendMessage(input)}
+          placeholder="Ask Byeol anything about code or your studies..."
+          className="flex-1 p-3 rounded-xl border focus:outline-none"
+          style={{ borderColor: "var(--border)", backgroundColor: "var(--surface)" }}
+        />
 
-          <button className="input-btn send" title="Send" onClick={() => sendMessage(input)}>
-            <SendIcon size={18} />
-          </button>
-        </div>
+        <button
+          onClick={() => sendMessage(input)}
+          className="px-4 py-2 rounded-xl text-white font-semibold"
+          style={{ backgroundColor: "var(--primary)" }}
+        >
+          Send
+        </button>
       </div>
     </div>
   );

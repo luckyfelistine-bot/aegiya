@@ -102,9 +102,18 @@ function AppContent() {
     showToast("Lesson Loaded", `${title} is ready in your editor! ✨`, "success");
   }, [showToast]);
 
-  const handleFileUpload = useCallback((text: string, filename: string) => {
+// Listen for file upload events from FileUploader component
+useEffect(() => {
+  const handleFileProcessed = (event: CustomEvent) => {
+    const { text, filename } = event.detail;
     showToast("File Uploaded", `Processing "${filename}"...`, "info");
-  }, [showToast]);
+    // You can also use `text` if needed
+  };
+  window.addEventListener('byeol:fileProcessed', handleFileProcessed as EventListener);
+  return () => {
+    window.removeEventListener('byeol:fileProcessed', handleFileProcessed as EventListener);
+  };
+}, [showToast]);
 
   const handleOnboarding = async () => {
     const name = (document.getElementById("onboardName") as HTMLInputElement)?.value || "Dal";
@@ -196,7 +205,7 @@ function AppContent() {
           <LessonBadge onLoadLesson={handleLoadLesson} />
           <div style={{ flex: 1 }} />
           <div className="dock-divider" />
-          <FileUploader onUpload={handleFileUpload} />
+          <FileUploader />
           <button className="dock-btn" title="Voice Mode">
             <MicIcon size={22} />
           </button>

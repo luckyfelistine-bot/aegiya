@@ -9,6 +9,9 @@ export const MODELS = {
   WHISPER: "whisper-large-v3-turbo",
 } as const;
 
+// ✅ Add this named export for backward compatibility
+export const CHAT_MODEL = MODELS.CHAT;
+
 export async function withRetry<T>(
   fn: () => Promise<T>,
   maxRetries: number = 3,
@@ -21,7 +24,6 @@ export async function withRetry<T>(
       return await fn();
     } catch (error: any) {
       lastError = error;
-      // Only retry on rate limit or server errors
       if (error.status === 429 || error.status >= 500) {
         await new Promise((r) => setTimeout(r, delay * Math.pow(2, i)));
         continue;
@@ -29,6 +31,5 @@ export async function withRetry<T>(
       throw error;
     }
   }
-
   throw lastError;
 }

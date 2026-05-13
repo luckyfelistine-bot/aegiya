@@ -2,8 +2,7 @@ import { NextResponse } from 'next/server';
 import { kv } from '@/lib/kv';
 import { groq, CHAT_MODEL } from '@/lib/groq';
 import { buildSystemPrompt } from '@/lib/systemPrompt';
-import { defaultMemory } from '@/lib/memory';
-import { DalMemory } from '@/lib/memory';
+import { defaultMemory, DalMemory } from '@/lib/systemPrompt';
 
 export async function GET() {
   try {

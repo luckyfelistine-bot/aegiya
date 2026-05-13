@@ -42,7 +42,6 @@ export default function ChatWindow({ onCodeUpdate, setIsLoading }: ChatWindowPro
     chatEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
 
-  // ---------- Memory Update ----------
   const updateMemory = async (assistantContent: string) => {
     const summary = assistantContent.slice(0, 300);
     try {
@@ -59,9 +58,7 @@ export default function ChatWindow({ onCodeUpdate, setIsLoading }: ChatWindowPro
     }
   };
 
-  // ---------- Live Extraction ----------
   const extractLiveContent = (content: string) => {
-    // 1. Code blocks -> live editor
     const codeBlockRegex = /```(\w+)?\n([\s\S]*?)```/g;
     let match;
     while ((match = codeBlockRegex.exec(content)) !== null) {
@@ -72,7 +69,6 @@ export default function ChatWindow({ onCodeUpdate, setIsLoading }: ChatWindowPro
       }
     }
 
-    // 2. Artifact blocks (structured JSON)
     const artifactRegex = /```artifact\n([\s\S]*?)```/g;
     while ((match = artifactRegex.exec(content)) !== null) {
       try {
@@ -83,7 +79,6 @@ export default function ChatWindow({ onCodeUpdate, setIsLoading }: ChatWindowPro
       }
     }
 
-    // 3. Inline file declarations: [FILE: name.ext] ... [/FILE]
     const fileRegex = /\[FILE:\s*([^\]]+)\.([^\]]+)\]([\s\S]*?)\[\/FILE\]/g;
     while ((match = fileRegex.exec(content)) !== null) {
       const [, name, ext, fileContent] = match;
@@ -119,7 +114,6 @@ export default function ChatWindow({ onCodeUpdate, setIsLoading }: ChatWindowPro
     }).catch(console.error);
   };
 
-  // ---------- Send Message (Streaming) ----------
   const sendMessage = async (content: string) => {
     if (!content.trim()) return;
     const userMsg: Message = { role: "user", content };
@@ -183,7 +177,6 @@ export default function ChatWindow({ onCodeUpdate, setIsLoading }: ChatWindowPro
     }
   };
 
-  // ---------- File Upload ----------
   const handleFileUpload = async (e: React.ChangeEvent<<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -216,7 +209,6 @@ export default function ChatWindow({ onCodeUpdate, setIsLoading }: ChatWindowPro
 
   return (
     <div className="flex flex-col h-full p-4">
-      {/* Messages */}
       <div className="flex-1 overflow-y-auto space-y-4">
         {messages.map((msg, i) => (
           <div
@@ -237,7 +229,6 @@ export default function ChatWindow({ onCodeUpdate, setIsLoading }: ChatWindowPro
         <div ref={chatEndRef} />
       </div>
 
-      {/* Input Row */}
       <div className="mt-4 flex gap-2 items-center">
         <VoiceButton onTranscript={(text) => sendMessage(text)} />
 

@@ -18,7 +18,8 @@
     "mammoth": "^1.6.0",
     "jspdf": "^2.5.1",
     "docx": "^7.7.0",
-    "uuid": "^9.0.0"
+    "uuid": "^9.0.0",
+    "@vercel/kv": "^1.0.0"
   },
   "devDependencies": {
     "@types/node": "^20.0.0",

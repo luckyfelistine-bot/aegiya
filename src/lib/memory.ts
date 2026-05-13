@@ -1,7 +1,7 @@
 /**
  * Memory shape for Dal.
  */
-
+// force rebuild
 export interface DalMemory {
   // Learning progress
   topics_covered: string[];

@@ -127,9 +127,9 @@ export default function CodeEditor({ code, onChange, onRun }: CodeEditorProps) {
       <div className="pane-header">
         <div className="pane-title">Source Code</div>
         <div className="pane-actions">
-          <button className="icon-btn" title="Copy" onClick={copyCode}><CopyIcon size={16} /></button>
-          <button className="icon-btn" title="Download" onClick={downloadCode}><DownloadIcon size={16} /></button>
-          <button className="icon-btn" title="Run" onClick={onRun}><PlayIcon size={16} /></button>
+          <button className="icon-btn" title="Copy" onClick={copyCode}><CopyIcon width={16} height={16} /></button>
+          <button className="icon-btn" title="Download" onClick={downloadCode}><DownloadIcon width={16} height={16} /></button>
+          <button className="icon-btn" title="Run" onClick={onRun}><PlayIcon width={16} height={16} /></button>
         </div>
       </div>
       <div ref={editorRef} style={{ flex: 1, overflow: "hidden", minHeight: 0 }} />

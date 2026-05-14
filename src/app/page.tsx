@@ -7,6 +7,7 @@ import Dashboard from "@/components/Dashboard";
 import Toast from "@/components/Toast";
 import ThemePicker from "@/components/ThemePicker";
 import CosmosBackground from "@/components/CosmosBackground";
+import Universe3D from "@/components/Universe3D";
 import {
   HomeIcon,
   CodeIcon,
@@ -21,10 +22,8 @@ import {
   MapPinIcon,
   StarIcon,
 } from "@/components/SvgIcons";
-
 import dynamic from "next/dynamic";
 
-const UniverseView = dynamic(() => import("@/components/UniverseView"), { ssr: false });
 const WorkspaceView = dynamic(() => import("@/components/WorkspaceView"), { ssr: false });
 
 type ViewType = "universe" | "workspace" | "chat";
@@ -41,7 +40,7 @@ export default function Home() {
   const [currentView, setCurrentView] = useState<ViewType>("universe");
   const [universeScene, setUniverseScene] = useState<UniverseScene>("home");
   const [chatOpen, setChatOpen] = useState(false);
-  const [isDashboardOpen, setIsDashboardOpen] = useState(false); // Collapsible dashboard
+  const [isDashboardOpen, setIsDashboardOpen] = useState(false);
   const [showOnboarding, setShowOnboarding] = useState(false);
   const [theme, setTheme] = useState("andromeda");
   const [toast, setToast] = useState<ToastState>({
@@ -54,7 +53,7 @@ export default function Home() {
 
   // Detect mobile
   useEffect(() => {
-    const check = () => setIsMobile(window.innerWidth <= 1100);
+    const check = () => setIsMobile(window.innerWidth <= 768);
     check();
     window.addEventListener("resize", check);
     return () => window.removeEventListener("resize", check);
@@ -160,6 +159,7 @@ export default function Home() {
   );
 
   const toggleDashboard = () => setIsDashboardOpen(!isDashboardOpen);
+  const closeDashboard = () => setIsDashboardOpen(false);
 
   return (
     <div className="app-shell">
@@ -174,7 +174,7 @@ export default function Home() {
       {/* Collapsible Dashboard Sidebar */}
       <aside className={`dashboard-sidebar ${isDashboardOpen ? "open" : ""}`}>
         <div className="dashboard-sidebar-header">
-          <button className="close-dashboard" onClick={toggleDashboard} aria-label="Close dashboard">
+          <button className="close-dashboard" onClick={closeDashboard} aria-label="Close dashboard">
             <XIcon />
           </button>
         </div>
@@ -183,20 +183,19 @@ export default function Home() {
             onNavigate={(view) => {
               if (view === "workspace") setCurrentView("workspace");
               else if (view === "constellation") setCurrentView("universe");
-              // Close dashboard after navigation (optional)
-              setIsDashboardOpen(false);
+              closeDashboard();
             }}
             onOpenLesson={() => {
               setCurrentView("workspace");
-              setIsDashboardOpen(false);
+              closeDashboard();
             }}
           />
         </div>
       </aside>
 
-      {/* LEFT: Dock */}
+      {/* Left Dock */}
       <nav className="dock glass" role="navigation">
-        <button className="dock-logo" onClick={toggleDashboard} title="Dashboard (Love Emoji)">
+        <button className="dock-logo" onClick={toggleDashboard} title="Dashboard">
           <HeartIcon />
         </button>
         <div className="dock-divider" />
@@ -254,16 +253,11 @@ export default function Home() {
         />
       </nav>
 
-      {/* CENTER: Main Content */}
+      {/* Main Content */}
       <main className="main-content">
         {currentView === "universe" && (
           <Suspense fallback={<div className="view-loading"><div className="loading-spinner" /><p>Loading universe...</p></div>}>
-            <UniverseView
-              scene={universeScene}
-              onSceneChange={handleSceneChange}
-              onOpenChat={() => (isMobile ? setChatOpen(true) : setCurrentView("chat"))}
-              onOpenWorkspace={() => setCurrentView("workspace")}
-            />
+            <Universe3D />
           </Suspense>
         )}
 
@@ -283,7 +277,7 @@ export default function Home() {
         )}
       </main>
 
-      {/* RIGHT: Chat Panel (Desktop) */}
+      {/* Right Chat Panel (desktop) */}
       {!isMobile && (
         <aside className={`chat-panel glass ${chatOpen ? "open" : ""}`}>
           <ChatWindow onClose={() => setChatOpen(false)} onToolCall={handleToolCall} />
@@ -293,7 +287,12 @@ export default function Home() {
       {/* Mobile Chat Drawer */}
       {isMobile && (
         <div className={`chat-drawer ${chatOpen ? "open" : ""}`}>
-          <div className="chat-drawer-header"><h3>Byeol</h3><button className="icon-btn" onClick={() => setChatOpen(false)}><XIcon /></button></div>
+          <div className="chat-drawer-header">
+            <h3>Byeol</h3>
+            <button className="icon-btn" onClick={() => setChatOpen(false)}>
+              <XIcon />
+            </button>
+          </div>
           <ChatWindow onClose={() => setChatOpen(false)} onToolCall={handleToolCall} />
         </div>
       )}
@@ -320,10 +319,21 @@ function OnboardingModal({ onComplete }: { onComplete: (data: { name: string; co
         <div className="modal-icon"><SparklesIcon /></div>
         <h2>Welcome, Dal</h2>
         <p>Byeol has been waiting for you. Let&apos;s personalize your universe before we begin.</p>
-        <div className="form-group"><label>Your Name</label><input value={name} onChange={(e) => setName(e.target.value)} /></div>
-        <div className="form-group"><label>Favorite Colors</label><input value={colors} onChange={(e) => setColors(e.target.value)} /></div>
-        <div className="form-group"><label>What are you studying?</label><input value={study} onChange={(e) => setStudy(e.target.value)} /></div>
-        <button className="neon-btn" onClick={() => onComplete({ name, colors, study })}>Enter Our Universe</button>
+        <div className="form-group">
+          <label>Your Name</label>
+          <input value={name} onChange={(e) => setName(e.target.value)} />
+        </div>
+        <div className="form-group">
+          <label>Favorite Colors</label>
+          <input value={colors} onChange={(e) => setColors(e.target.value)} />
+        </div>
+        <div className="form-group">
+          <label>What are you studying?</label>
+          <input value={study} onChange={(e) => setStudy(e.target.value)} />
+        </div>
+        <button className="neon-btn" onClick={() => onComplete({ name, colors, study })}>
+          Enter Our Universe
+        </button>
       </div>
     </div>
   );

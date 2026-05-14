@@ -616,6 +616,43 @@ export const UserIcon = ({ size = 24, className = "" }: IconProps) =>
   );
 
 /**
+ * X icon – used for closing modals / toasts
+ */
+export const XIcon = ({ size = 24, className = "" }: IconProps) =>
+  createIcon(
+    <>
+      <line x1="18" y1="6" x2="6" y2="18" />
+      <line x1="6" y1="6" x2="18" y2="18" />
+    </>,
+    { size, className }
+  );
+
+/**
+ * Error icon – used for error toasts
+ */
+export const ErrorIcon = ({ size = 24, className = "" }: IconProps) =>
+  createIcon(
+    <>
+      <circle cx="12" cy="12" r="10" />
+      <line x1="12" y1="8" x2="12" y2="12" />
+      <line x1="12" y1="16" x2="12.01" y2="16" />
+      <line x1="8" y1="8" x2="16" y2="16" />
+    </>,
+    { size, className }
+  );
+
+/**
+ * Play icon – used for running code (alias for RunIcon)
+ */
+export const PlayIcon = ({ size = 24, className = "" }: IconProps) =>
+  createIcon(
+    <>
+      <polygon points="5 3 19 12 5 21 5 3" />
+    </>,
+    { size, className }
+  );
+
+/**
  * Loader icon - animated spinning loader
  */
 export const LoaderIcon = ({ size = 24, className = "" }: IconProps) => (

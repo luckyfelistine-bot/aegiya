@@ -3,6 +3,7 @@
 import React, { useState, useEffect, useCallback, lazy, Suspense } from "react";
 import { memory } from "@/lib/memory";
 import { ChatWindow } from "@/components/ChatWindow";
+import Dashboard from "@/components/Dashboard";
 import Toast from "@/components/Toast";
 import ThemePicker from "@/components/ThemePicker";
 import CosmosBackground from "@/components/CosmosBackground";
@@ -40,6 +41,7 @@ export default function Home() {
   const [currentView, setCurrentView] = useState<ViewType>("universe");
   const [universeScene, setUniverseScene] = useState<UniverseScene>("home");
   const [chatOpen, setChatOpen] = useState(false);
+  const [isDashboardOpen, setIsDashboardOpen] = useState(false); // Collapsible dashboard
   const [showOnboarding, setShowOnboarding] = useState(false);
   const [theme, setTheme] = useState("andromeda");
   const [toast, setToast] = useState<ToastState>({
@@ -127,7 +129,6 @@ export default function Home() {
     }
   };
 
-  // Tool calling handler for AI -> Editor bridge
   const handleToolCall = useCallback(
     async (tool: string, params: any) => {
       switch (tool) {
@@ -158,31 +159,41 @@ export default function Home() {
     [showToast]
   );
 
+  // Toggle dashboard
+  const toggleDashboard = () => setIsDashboardOpen(!isDashboardOpen);
+
   return (
     <div className="app-shell">
       <CosmosBackground />
 
       <ThemePicker value={theme} onChange={handleThemeChange} />
-
-      <Toast
-        {...toast}
-        onClose={() => setToast((t) => ({ ...t, show: false }))}
-      />
+      <Toast {...toast} onClose={() => setToast((t) => ({ ...t, show: false }))} />
 
       {showOnboarding && <OnboardingModal onComplete={handleOnboardingComplete} />}
+      {isMobile && chatOpen && <div className="chat-overlay open" onClick={() => setChatOpen(false)} />}
 
-      {isMobile && chatOpen && (
-        <div className="chat-overlay open" onClick={() => setChatOpen(false)} />
-      )}
+      {/* Collapsible Dashboard Sidebar */}
+      <aside className={`dashboard-sidebar ${isDashboardOpen ? "open" : ""}`}>
+        <div className="dashboard-sidebar-header">
+          <button className="close-dashboard" onClick={toggleDashboard}>
+            <XIcon />
+          </button>
+        </div>
+        <div className="dashboard-sidebar-content">
+          <Dashboard
+            onNavigate={(view) => {
+              if (view === "workspace") setCurrentView("workspace");
+              else if (view === "constellation") setCurrentView("universe");
+              setIsDashboardOpen(false);
+            }}
+            onOpenLesson={() => setCurrentView("workspace")}
+          />
+        </div>
+      </aside>
 
       {/* LEFT: Dock */}
-      <nav className="dock glass" role="navigation" aria-label="Main navigation">
-        <button
-          className="dock-logo"
-          onClick={() => setCurrentView("universe")}
-          title="Our Universe"
-          aria-label="Our Universe"
-        >
+      <nav className="dock glass" role="navigation">
+        <button className="dock-logo" onClick={toggleDashboard} title="Dashboard (Love Emoji)">
           <HeartIcon />
         </button>
         <div className="dock-divider" />
@@ -201,10 +212,7 @@ export default function Home() {
         />
         <DockButton
           active={currentView === "chat" || chatOpen}
-          onClick={() => {
-            if (isMobile) setChatOpen(true);
-            else setCurrentView("chat");
-          }}
+          onClick={() => (isMobile ? setChatOpen(true) : setCurrentView("chat"))}
           title="Chat"
           icon={<MessageCircleIcon />}
         />
@@ -246,14 +254,7 @@ export default function Home() {
       {/* CENTER: Main Content */}
       <main className="main-content">
         {currentView === "universe" && (
-          <Suspense
-            fallback={
-              <div className="view-loading">
-                <div className="loading-spinner" />
-                <p>Loading our universe...</p>
-              </div>
-            }
-          >
+          <Suspense fallback={<div className="view-loading"><div className="loading-spinner" /><p>Loading universe...</p></div>}>
             <UniverseView
               scene={universeScene}
               onSceneChange={handleSceneChange}
@@ -264,14 +265,7 @@ export default function Home() {
         )}
 
         {currentView === "workspace" && (
-          <Suspense
-            fallback={
-              <div className="view-loading">
-                <div className="loading-spinner" />
-                <p>Loading workspace...</p>
-              </div>
-            }
-          >
+          <Suspense fallback={<div className="view-loading"><div className="loading-spinner" /><p>Loading workspace...</p></div>}>
             <WorkspaceView
               showToast={showToast}
               onClose={() => setCurrentView("universe")}
@@ -281,47 +275,29 @@ export default function Home() {
 
         {currentView === "chat" && !isMobile && (
           <div className="chat-fullscreen">
-            <ChatWindow
-              onClose={() => setCurrentView("universe")}
-              onToolCall={handleToolCall}
-            />
+            <ChatWindow onClose={() => setCurrentView("universe")} onToolCall={handleToolCall} />
           </div>
         )}
       </main>
 
-      {/* RIGHT: Chat Panel (Desktop only) */}
+      {/* RIGHT: Chat Panel (Desktop) */}
       {!isMobile && (
         <aside className={`chat-panel glass ${chatOpen ? "open" : ""}`}>
-          <ChatWindow
-            onClose={() => setChatOpen(false)}
-            onToolCall={handleToolCall}
-          />
+          <ChatWindow onClose={() => setChatOpen(false)} onToolCall={handleToolCall} />
         </aside>
       )}
 
       {/* Mobile Chat Drawer */}
       {isMobile && (
         <div className={`chat-drawer ${chatOpen ? "open" : ""}`}>
-          <div className="chat-drawer-header">
-            <h3>Byeol</h3>
-            <button className="icon-btn" onClick={() => setChatOpen(false)} aria-label="Close chat">
-              <XIcon />
-            </button>
-          </div>
-          <ChatWindow
-            onClose={() => setChatOpen(false)}
-            onToolCall={handleToolCall}
-          />
+          <div className="chat-drawer-header"><h3>Byeol</h3><button className="icon-btn" onClick={() => setChatOpen(false)}><XIcon /></button></div>
+          <ChatWindow onClose={() => setChatOpen(false)} onToolCall={handleToolCall} />
         </div>
       )}
 
-      {/* Floating Chat Button (when chat is closed) */}
+      {/* Floating Chat Button */}
       {!chatOpen && currentView !== "chat" && (
-        <button
-          className="fab-chat"
-          onClick={() => (isMobile ? setChatOpen(true) : setChatOpen(true))}
-          aria-label="Open chat"
-        >
+        <button className="fab-chat" onClick={() => (isMobile ? setChatOpen(true) : setChatOpen(true))}>
           <MessageCircleIcon />
         </button>
       )}
@@ -329,34 +305,15 @@ export default function Home() {
   );
 }
 
-function DockButton({
-  active,
-  onClick,
-  title,
-  icon,
-}: {
-  active: boolean;
-  onClick: () => void;
-  title: string;
-  icon: React.ReactNode;
-}) {
+function DockButton({ active, onClick, title, icon }: { active: boolean; onClick: () => void; title: string; icon: React.ReactNode }) {
   return (
-    <button
-      className={`dock-btn ${active ? "active" : ""}`}
-      onClick={onClick}
-      title={title}
-      aria-label={title}
-    >
+    <button className={`dock-btn ${active ? "active" : ""}`} onClick={onClick} title={title}>
       {icon}
     </button>
   );
 }
 
-function OnboardingModal({
-  onComplete,
-}: {
-  onComplete: (data: { name: string; colors: string; study: string }) => void;
-}) {
+function OnboardingModal({ onComplete }: { onComplete: (data: { name: string; colors: string; study: string }) => void }) {
   const [name, setName] = useState("Dal");
   const [colors, setColors] = useState("pink, purple");
   const [study, setStudy] = useState("Clinical Medicine");
@@ -364,40 +321,13 @@ function OnboardingModal({
   return (
     <div className="modal-overlay open">
       <div className="modal-content glass-lg">
-        <div className="modal-icon">
-          <SparklesIcon />
-        </div>
+        <div className="modal-icon"><SparklesIcon /></div>
         <h2>Welcome, Dal</h2>
         <p>Byeol has been waiting for you. Let&apos;s personalize your universe before we begin.</p>
-
-        <div className="form-group">
-          <label>Your Name</label>
-          <input
-            value={name}
-            onChange={(e) => setName(e.target.value)}
-            placeholder="What should Byeol call you?"
-          />
-        </div>
-        <div className="form-group">
-          <label>Favorite Colors</label>
-          <input
-            value={colors}
-            onChange={(e) => setColors(e.target.value)}
-            placeholder="e.g. pink, cyan, gold"
-          />
-        </div>
-        <div className="form-group">
-          <label>What are you studying?</label>
-          <input
-            value={study}
-            onChange={(e) => setStudy(e.target.value)}
-            placeholder="e.g. Medicine, Coding, Design"
-          />
-        </div>
-
-        <button className="neon-btn" onClick={() => onComplete({ name, colors, study })}>
-          Enter Our Universe
-        </button>
+        <div className="form-group"><label>Your Name</label><input value={name} onChange={(e) => setName(e.target.value)} /></div>
+        <div className="form-group"><label>Favorite Colors</label><input value={colors} onChange={(e) => setColors(e.target.value)} /></div>
+        <div className="form-group"><label>What are you studying?</label><input value={study} onChange={(e) => setStudy(e.target.value)} /></div>
+        <button className="neon-btn" onClick={() => onComplete({ name, colors, study })}>Enter Our Universe</button>
       </div>
     </div>
   );

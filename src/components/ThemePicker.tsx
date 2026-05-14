@@ -1,14 +1,11 @@
 "use client";
 
 import { useState, useRef, useEffect } from "react";
-import {
-  PaletteIcon,
-  CheckIcon,
-} from "@/components/SvgIcons";
+import { PaletteIcon, CheckIcon } from "@/components/SvgIcons";
 
 interface ThemePickerProps {
-  value?: string;        // Changed from currentTheme to match page.tsx
-  onChange?: (theme: string) => void;  // Changed from onThemeChange
+  value?: string;
+  onChange?: (theme: string) => void;
 }
 
 const themes = [
@@ -94,33 +91,35 @@ export default function ThemePicker({ value, onChange }: ThemePickerProps) {
         <PaletteIcon />
       </button>
 
-      <div
-        className={`theme-dropdown glass-strong ${isOpen ? "open" : ""}`}
-        role="listbox"
-        aria-label="Theme options"
-      >
-        {themes.map((theme) => (
-          <button
-            key={theme.id}
-            className={`theme-option ${internalTheme === theme.id ? "active" : ""}`}
-            onClick={() => handleThemeSelect(theme.id)}
-            role="option"
-            aria-selected={internalTheme === theme.id}
-          >
-            <div
-              className="theme-swatch"
-              style={{ background: theme.gradient }}
-            />
-            <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-start" }}>
-              <span style={{ fontWeight: 600 }}>{theme.name}</span>
-              <span style={{ fontSize: "0.75rem", opacity: 0.6 }}>{theme.subtitle}</span>
-            </div>
-            {internalTheme === theme.id && (
-              <CheckIcon style={{ marginLeft: "auto", width: 16, height: 16 }} />
-            )}
-          </button>
-        ))}
-      </div>
+      {isOpen && (
+        <div
+          className="theme-dropdown glass-strong"
+          role="listbox"
+          aria-label="Theme options"
+        >
+          {themes.map((theme) => (
+            <button
+              key={theme.id}
+              className={`theme-option ${internalTheme === theme.id ? "active" : ""}`}
+              onClick={() => handleThemeSelect(theme.id)}
+              role="option"
+              aria-selected={internalTheme === theme.id}
+            >
+              <div
+                className="theme-swatch"
+                style={{ background: theme.gradient }}
+              />
+              <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-start" }}>
+                <span style={{ fontWeight: 600 }}>{theme.name}</span>
+                <span style={{ fontSize: "0.75rem", opacity: 0.6 }}>{theme.subtitle}</span>
+              </div>
+              {internalTheme === theme.id && (
+                <CheckIcon style={{ marginLeft: "auto", width: 16, height: 16 }} />
+              )}
+            </button>
+          ))}
+        </div>
+      )}
     </div>
   );
 }

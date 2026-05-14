@@ -1,34 +1,48 @@
+// src/app/page.tsx
 "use client";
 
-import React, { useState, useEffect, useCallback, lazy, Suspense } from "react";
-import { memory } from "@/lib/memory";
-import { ChatWindow } from "@/components/ChatWindow";
-import Dashboard from "@/components/Dashboard";
-import Toast from "@/components/Toast";
-import ThemePicker from "@/components/ThemePicker";
-import CosmosBackground from "@/components/CosmosBackground";
-import Universe3D from "@/components/Universe3D";
-import {
-  HomeIcon,
-  CodeIcon,
-  SparklesIcon,
-  MessageCircleIcon,
-  XIcon,
-  HeartIcon,
-  PlaneIcon,
-  BuildingIcon,
-  CarIcon,
-  BabyIcon,
-  MapPinIcon,
-  StarIcon,
-} from "@/components/SvgIcons";
+import React, { useState, useCallback, useEffect } from "react";
 import dynamic from "next/dynamic";
+import CosmosBackground from "@/components/CosmosBackground";
+import Dashboard from "@/components/Dashboard";
+import ThemePicker from "@/components/ThemePicker";
+import Toast from "@/components/Toast";
+import {
+  HeartIcon,
+  GlobeIcon,
+  CodeIcon,
+  ChatIcon,
+  SparklesIcon,
+} from "@/components/SvgIcons";
 
-const WorkspaceView = dynamic(() => import("@/components/WorkspaceView"), { ssr: false });
+/**
+ * Dynamic imports for heavy components to improve initial load
+ */
+const Universe3D = dynamic(() => import("@/components/Universe3D"), {
+  ssr: false,
+  loading: () => (
+    <div className="flex items-center justify-center h-full">
+      <div className="text-starlight/50 animate-pulse">Loading Universe...</div>
+    </div>
+  ),
+});
 
-type ViewType = "universe" | "workspace" | "chat";
-type UniverseScene = "home" | "city" | "vacation" | "family" | "future";
+const WorkspaceView = dynamic(() => import("@/components/WorkspaceView"), {
+  ssr: false,
+});
 
+const ChatWindow = dynamic(() => import("@/components/ChatWindow"), {
+  ssr: false,
+});
+
+/**
+ * Available application views
+ */
+type ViewMode = "universe" | "workspace" | "chat";
+
+/**
+ * Toast notification state
+ */
 interface ToastState {
   show: boolean;
   type: "info" | "success" | "warning" | "error";
@@ -36,13 +50,23 @@ interface ToastState {
   message: string;
 }
 
-export default function Home() {
-  const [currentView, setCurrentView] = useState<ViewType>("universe");
-  const [universeScene, setUniverseScene] = useState<UniverseScene>("home");
-  const [chatOpen, setChatOpen] = useState(false);
+/**
+ * Dock item configuration
+ */
+interface DockItem {
+  id: ViewMode;
+  icon: React.ReactNode;
+  label: string;
+  color: string;
+}
+
+/**
+ * Main page component - Orchestrates the entire application
+ * Manages view switching, dashboard sidebar, dock, and global UI elements
+ */
+export default function HomePage() {
+  const [currentView, setCurrentView] = useState<ViewMode>("universe");
   const [isDashboardOpen, setIsDashboardOpen] = useState(false);
-  const [showOnboarding, setShowOnboarding] = useState(false);
-  const [theme, setTheme] = useState("andromeda");
   const [toast, setToast] = useState<ToastState>({
     show: false,
     type: "info",
@@ -51,290 +75,195 @@ export default function Home() {
   });
   const [isMobile, setIsMobile] = useState(false);
 
-  // Detect mobile
+  /**
+   * Dock items configuration
+   */
+  const dockItems: DockItem[] = [
+    {
+      id: "universe",
+      icon: <GlobeIcon size={22} />,
+      label: "Universe",
+      color: "#06b6d4",
+    },
+    {
+      id: "workspace",
+      icon: <CodeIcon size={22} />,
+      label: "Workspace",
+      color: "#8b5cf6",
+    },
+    {
+      id: "chat",
+      icon: <ChatIcon size={22} />,
+      label: "Chat",
+      color: "#ec4899",
+    },
+  ];
+
+  /**
+   * Detect mobile viewport
+   */
   useEffect(() => {
-    const check = () => setIsMobile(window.innerWidth <= 768);
-    check();
-    window.addEventListener("resize", check);
-    return () => window.removeEventListener("resize", check);
-  }, []);
-
-  // Load saved state
-  useEffect(() => {
-    const init = async () => {
-      try {
-        const hasVisited = await memory.getProfile("hasVisited");
-        if (!hasVisited) setShowOnboarding(true);
-
-        const savedTheme = await memory.getProfile("theme");
-        if (savedTheme) {
-          setTheme(savedTheme);
-          document.documentElement.setAttribute("data-theme", savedTheme);
-        }
-
-        const savedScene = await memory.getProfile("universeScene");
-        if (savedScene) setUniverseScene(savedScene as UniverseScene);
-      } catch (e) {
-        console.error("Init error:", e);
-      }
+    const checkMobile = () => {
+      setIsMobile(window.innerWidth < 768);
     };
-    init();
+    checkMobile();
+    window.addEventListener("resize", checkMobile);
+    return () => window.removeEventListener("resize", checkMobile);
   }, []);
 
+  /**
+   * Show a toast notification
+   */
   const showToast = useCallback(
     (type: ToastState["type"], title: string, message: string) => {
       setToast({ show: true, type, title, message });
-      setTimeout(() => setToast((t) => ({ ...t, show: false })), 5000);
     },
     []
   );
 
-  const handleThemeChange = async (newTheme: string) => {
-    setTheme(newTheme);
-    document.documentElement.setAttribute("data-theme", newTheme);
-    await memory.setProfile("theme", newTheme);
-    showToast("info", "Theme Changed", `Constellation set to ${newTheme}`);
-  };
+  /**
+   * Hide the toast notification
+   */
+  const hideToast = useCallback(() => {
+    setToast((prev) => ({ ...prev, show: false }));
+  }, []);
 
-  const handleSceneChange = async (scene: UniverseScene) => {
-    setUniverseScene(scene);
-    await memory.setProfile("universeScene", scene);
-    const sceneNames: Record<UniverseScene, string> = {
-      home: "Our Home",
-      city: "Our City",
-      vacation: "Vacation Mode",
-      family: "Our Family",
-      future: "Our Future",
-    };
-    showToast("success", "Universe Updated", `Now viewing: ${sceneNames[scene]}`);
-  };
-
-  const handleOnboardingComplete = async (data: {
-    name: string;
-    colors: string;
-    study: string;
-  }) => {
-    try {
-      await memory.setProfile("hasVisited", true);
-      await memory.setProfile("name", data.name);
-      await memory.setProfile("colors", data.colors);
-      await memory.setProfile("study", data.study);
-      await memory.setProfile("joined", Date.now());
-      setShowOnboarding(false);
-      showToast("success", "Welcome!", `Byeol is ready for you, ${data.name}!`);
-    } catch (e) {
-      console.error("Onboarding error:", e);
-      setShowOnboarding(false);
-    }
-  };
-
-  const handleToolCall = useCallback(
-    async (tool: string, params: any) => {
-      switch (tool) {
-        case "openWorkspace":
-          setCurrentView("workspace");
-          showToast("info", "Workspace Opened", "Byeol opened the editor for you");
-          return { success: true };
-        case "setCode":
-          window.dispatchEvent(new CustomEvent("byeol:setCode", { detail: { code: params.code } }));
-          setCurrentView("workspace");
-          return { success: true };
-        case "createProject":
-          await memory.saveProject(params.name, params.code || "", params.language || "html");
-          showToast("success", "Project Created", `${params.name} saved`);
-          return { success: true };
-        case "readEditor":
-          return new Promise((resolve) => {
-            window.dispatchEvent(
-              new CustomEvent("byeol:getCode", {
-                detail: { callback: (code: string) => resolve({ code }) },
-              })
-            );
-          });
-        default:
-          return { error: "Unknown tool" };
+  /**
+   * Navigate to a specific view
+   */
+  const navigateTo = useCallback(
+    (view: string) => {
+      if (["universe", "workspace", "chat"].includes(view)) {
+        setCurrentView(view as ViewMode);
+        setIsDashboardOpen(false);
       }
     },
-    [showToast]
+    []
   );
 
-  const toggleDashboard = () => setIsDashboardOpen(!isDashboardOpen);
-  const closeDashboard = () => setIsDashboardOpen(false);
+  /**
+   * Toggle dashboard sidebar
+   */
+  const toggleDashboard = useCallback(() => {
+    setIsDashboardOpen((prev) => !prev);
+  }, []);
+
+  /**
+   * Welcome toast on first visit
+   */
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      showToast("info", "Welcome to Byeol", "Your personal universe awaits, Dal.");
+    }, 1500);
+    return () => clearTimeout(timer);
+  }, [showToast]);
 
   return (
-    <div className="app-shell">
+    <main className="relative w-screen h-screen overflow-hidden bg-void">
+      {/* Cosmic Background */}
       <CosmosBackground />
 
-      <ThemePicker value={theme} onChange={handleThemeChange} />
-      <Toast {...toast} onClose={() => setToast((t) => ({ ...t, show: false }))} />
+      {/* Dashboard Sidebar */}
+      <Dashboard
+        isOpen={isDashboardOpen}
+        onClose={() => setIsDashboardOpen(false)}
+        onNavigate={navigateTo}
+      />
 
-      {showOnboarding && <OnboardingModal onComplete={handleOnboardingComplete} />}
-      {isMobile && chatOpen && <div className="chat-overlay open" onClick={() => setChatOpen(false)} />}
+      {/* Main Content Area */}
+      <div
+        className={`relative h-full transition-all duration-300 ${
+          isDashboardOpen && !isMobile ? "ml-80" : "ml-0"
+        }`}
+      >
+        {/* View Container */}
+        <div className="h-full pb-20 md:pb-0 md:pl-20">
+          {currentView === "universe" && <Universe3D />}
+          {currentView === "workspace" && <WorkspaceView />}
+          {currentView === "chat" && <ChatWindow />}
+        </div>
+      </div>
 
-      {/* Collapsible Dashboard Sidebar */}
-      <aside className={`dashboard-sidebar ${isDashboardOpen ? "open" : ""}`}>
-        <div className="dashboard-sidebar-header">
-          <button className="close-dashboard" onClick={closeDashboard} aria-label="Close dashboard">
-            <XIcon />
+      {/* Dock - Desktop (left side) / Mobile (bottom) */}
+      <nav
+        className={`fixed z-50 flex items-center gap-2 ${
+          isMobile
+            ? "bottom-4 left-1/2 -translate-x-1/2 flex-row"
+            : "left-4 top-1/2 -translate-y-1/2 flex-col"
+        }`}
+      >
+        <div className="glass-panel p-2 flex flex-col gap-2">
+          {/* Dashboard Toggle */}
+          <button
+            onClick={toggleDashboard}
+            className={`relative group p-3 rounded-xl transition-all duration-300 ${
+              isDashboardOpen
+                ? "bg-aurora/20 text-aurora shadow-[0_0_20px_rgba(139,92,246,0.3)]"
+                : "text-starlight/60 hover:text-starlight hover:bg-white/10"
+            }`}
+            aria-label="Toggle dashboard"
+          >
+            <HeartIcon size={22} />
+            {isDashboardOpen && (
+              <span className="absolute inset-0 rounded-xl animate-pulse bg-aurora/10" />
+            )}
           </button>
+
+          <div className="w-8 h-px bg-glass-border mx-auto" />
+
+          {/* View Switchers */}
+          {dockItems.map((item) => (
+            <button
+              key={item.id}
+              onClick={() => setCurrentView(item.id)}
+              className={`relative group p-3 rounded-xl transition-all duration-300 ${
+                currentView === item.id
+                  ? "text-starlight shadow-[0_0_16px_rgba(0,0,0,0.3)]"
+                  : "text-starlight/50 hover:text-starlight hover:bg-white/10"
+              }`}
+              style={
+                currentView === item.id
+                  ? {
+                      backgroundColor: `${item.color}20`,
+                      boxShadow: `0 0 20px ${item.color}30`,
+                    }
+                  : {}
+              }
+              aria-label={`Switch to ${item.label}`}
+            >
+              {item.icon}
+
+              {/* Tooltip */}
+              <span
+                className={`absolute ${
+                  isMobile ? "bottom-full left-1/2 -translate-x-1/2 mb-2" : "left-full ml-3 top-1/2 -translate-y-1/2"
+                } px-2 py-1 rounded-md bg-eclipse text-xs text-starlight whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-50`}
+              >
+                {item.label}
+              </span>
+            </button>
+          ))}
+
+          <div className="w-8 h-px bg-glass-border mx-auto" />
+
+          {/* Brand indicator */}
+          <div className="p-3 flex items-center justify-center">
+            <SparklesIcon size={18} className="text-aurora/50" />
+          </div>
         </div>
-        <div className="dashboard-sidebar-content">
-          <Dashboard
-            onNavigate={(view) => {
-              if (view === "workspace") setCurrentView("workspace");
-              else if (view === "constellation") setCurrentView("universe");
-              closeDashboard();
-            }}
-            onOpenLesson={() => {
-              setCurrentView("workspace");
-              closeDashboard();
-            }}
-          />
-        </div>
-      </aside>
-
-      {/* Left Dock */}
-      <nav className="dock glass" role="navigation">
-        <button className="dock-logo" onClick={toggleDashboard} title="Dashboard">
-          <HeartIcon />
-        </button>
-        <div className="dock-divider" />
-
-        <DockButton
-          active={currentView === "universe"}
-          onClick={() => setCurrentView("universe")}
-          title="Universe"
-          icon={<StarIcon />}
-        />
-        <DockButton
-          active={currentView === "workspace"}
-          onClick={() => setCurrentView("workspace")}
-          title="Code"
-          icon={<CodeIcon />}
-        />
-        <DockButton
-          active={currentView === "chat" || chatOpen}
-          onClick={() => (isMobile ? setChatOpen(true) : setCurrentView("chat"))}
-          title="Chat"
-          icon={<MessageCircleIcon />}
-        />
-
-        <div className="dock-divider" />
-
-        <DockButton
-          active={universeScene === "home"}
-          onClick={() => handleSceneChange("home")}
-          title="Our Home"
-          icon={<HomeIcon />}
-        />
-        <DockButton
-          active={universeScene === "city"}
-          onClick={() => handleSceneChange("city")}
-          title="Our City"
-          icon={<BuildingIcon />}
-        />
-        <DockButton
-          active={universeScene === "vacation"}
-          onClick={() => handleSceneChange("vacation")}
-          title="Vacation"
-          icon={<PlaneIcon />}
-        />
-        <DockButton
-          active={universeScene === "family"}
-          onClick={() => handleSceneChange("family")}
-          title="Family"
-          icon={<BabyIcon />}
-        />
-        <DockButton
-          active={universeScene === "future"}
-          onClick={() => handleSceneChange("future")}
-          title="Future"
-          icon={<MapPinIcon />}
-        />
       </nav>
 
-      {/* Main Content */}
-      <main className="main-content">
-        {currentView === "universe" && (
-          <Suspense fallback={<div className="view-loading"><div className="loading-spinner" /><p>Loading universe...</p></div>}>
-            <Universe3D />
-          </Suspense>
-        )}
+      {/* Theme Picker */}
+      <ThemePicker />
 
-        {currentView === "workspace" && (
-          <Suspense fallback={<div className="view-loading"><div className="loading-spinner" /><p>Loading workspace...</p></div>}>
-            <WorkspaceView
-              showToast={showToast}
-              onClose={() => setCurrentView("universe")}
-            />
-          </Suspense>
-        )}
-
-        {currentView === "chat" && !isMobile && (
-          <div className="chat-fullscreen">
-            <ChatWindow onClose={() => setCurrentView("universe")} onToolCall={handleToolCall} />
-          </div>
-        )}
-      </main>
-
-      {/* Right Chat Panel (desktop) */}
-      {!isMobile && (
-        <aside className={`chat-panel glass ${chatOpen ? "open" : ""}`}>
-          <ChatWindow onClose={() => setChatOpen(false)} onToolCall={handleToolCall} />
-        </aside>
-      )}
-
-      {/* Mobile Chat Drawer */}
-      {isMobile && (
-        <div className={`chat-drawer ${chatOpen ? "open" : ""}`}>
-          <div className="chat-drawer-header">
-            <h3>Byeol</h3>
-            <button className="icon-btn" onClick={() => setChatOpen(false)}>
-              <XIcon />
-            </button>
-          </div>
-          <ChatWindow onClose={() => setChatOpen(false)} onToolCall={handleToolCall} />
-        </div>
-      )}
-    </div>
-  );
-}
-
-function DockButton({ active, onClick, title, icon }: { active: boolean; onClick: () => void; title: string; icon: React.ReactNode }) {
-  return (
-    <button className={`dock-btn ${active ? "active" : ""}`} onClick={onClick} title={title}>
-      {icon}
-    </button>
-  );
-}
-
-function OnboardingModal({ onComplete }: { onComplete: (data: { name: string; colors: string; study: string }) => void }) {
-  const [name, setName] = useState("Dal");
-  const [colors, setColors] = useState("pink, purple");
-  const [study, setStudy] = useState("Clinical Medicine");
-
-  return (
-    <div className="modal-overlay open">
-      <div className="modal-content glass-lg">
-        <div className="modal-icon"><SparklesIcon /></div>
-        <h2>Welcome, Dal</h2>
-        <p>Byeol has been waiting for you. Let&apos;s personalize your universe before we begin.</p>
-        <div className="form-group">
-          <label>Your Name</label>
-          <input value={name} onChange={(e) => setName(e.target.value)} />
-        </div>
-        <div className="form-group">
-          <label>Favorite Colors</label>
-          <input value={colors} onChange={(e) => setColors(e.target.value)} />
-        </div>
-        <div className="form-group">
-          <label>What are you studying?</label>
-          <input value={study} onChange={(e) => setStudy(e.target.value)} />
-        </div>
-        <button className="neon-btn" onClick={() => onComplete({ name, colors, study })}>
-          Enter Our Universe
-        </button>
-      </div>
-    </div>
+      {/* Toast Notifications */}
+      <Toast
+        show={toast.show}
+        type={toast.type}
+        title={toast.title}
+        message={toast.message}
+        onClose={hideToast}
+      />
+    </main>
   );
 }

@@ -392,6 +392,17 @@ body {
   transform: translateY(-2px);
 }
 
+/* Universe View Container – must have height and flex layout */
+.universe-view {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  padding: 20px;
+  gap: 16px;
+  position: relative;
+  overflow: hidden;
+}
+
 /* ─── WORKSPACE VIEW ─── */
 .workspace-view {
   display: flex;

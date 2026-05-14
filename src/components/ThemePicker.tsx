@@ -9,36 +9,18 @@ interface ThemePickerProps {
 }
 
 const themes = [
-  {
-    id: "andromeda",
-    name: "Andromeda",
-    subtitle: "First Date",
-    gradient: "linear-gradient(135deg, #ff6b9d, #ffd700)",
-  },
-  {
-    id: "orion",
-    name: "Orion",
-    subtitle: "Late Nights",
-    gradient: "linear-gradient(135deg, #60a5fa, #22d3ee)",
-  },
-  {
-    id: "cassiopeia",
-    name: "Cassiopeia",
-    subtitle: "Cozy Comfort",
-    gradient: "linear-gradient(135deg, #f472b6, #c084fc)",
-  },
-  {
-    id: "lyra",
-    name: "Lyra",
-    subtitle: "Celebration",
-    gradient: "linear-gradient(135deg, #fbbf24, #f59e0b)",
-  },
-  {
-    id: "cygnus",
-    name: "Cygnus",
-    subtitle: "Moonlight",
-    gradient: "linear-gradient(135deg, #34d399, #a78bfa)",
-  },
+  { id: "andromeda", name: "Andromeda", subtitle: "First Date", gradient: "linear-gradient(135deg, #ff6b9d, #ffd700)" },
+  { id: "orion", name: "Orion", subtitle: "Late Nights", gradient: "linear-gradient(135deg, #60a5fa, #22d3ee)" },
+  { id: "cassiopeia", name: "Cassiopeia", subtitle: "Cozy Comfort", gradient: "linear-gradient(135deg, #f472b6, #c084fc)" },
+  { id: "lyra", name: "Lyra", subtitle: "Celebration", gradient: "linear-gradient(135deg, #fbbf24, #f59e0b)" },
+  { id: "cygnus", name: "Cygnus", subtitle: "Moonlight", gradient: "linear-gradient(135deg, #34d399, #a78bfa)" },
+  { id: "nebula", name: "Nebula", subtitle: "Mystic", gradient: "linear-gradient(135deg, #c084fc, #f472b6)" },
+  { id: "supernova", name: "Supernova", subtitle: "Explosive", gradient: "linear-gradient(135deg, #fb923c, #f87171)" },
+  { id: "event-horizon", name: "Event Horizon", subtitle: "Dark", gradient: "linear-gradient(135deg, #2dd4bf, #4ade80)" },
+  { id: "moonlight", name: "Moonlight", subtitle: "Silvery", gradient: "linear-gradient(135deg, #e2e8f0, #94a3b8)" },
+  { id: "sunset", name: "Sunset", subtitle: "Warm", gradient: "linear-gradient(135deg, #ff7e5f, #feb47b)" },
+  { id: "aurora", name: "Aurora", subtitle: "Glow", gradient: "linear-gradient(135deg, #00c6ff, #0072ff)" },
+  { id: "cosmic-latte", name: "Cosmic Latte", subtitle: "Soft", gradient: "linear-gradient(135deg, #f5e6d3, #d4a5a5)" },
 ];
 
 export default function ThemePicker({ value, onChange }: ThemePickerProps) {
@@ -46,14 +28,12 @@ export default function ThemePicker({ value, onChange }: ThemePickerProps) {
   const dropdownRef = useRef<HTMLDivElement>(null);
   const [internalTheme, setInternalTheme] = useState(value || themes[0].id);
 
-  // Sync external value if provided
   useEffect(() => {
     if (value && value !== internalTheme) {
       setInternalTheme(value);
     }
   }, [value, internalTheme]);
 
-  // Close on outside click
   useEffect(() => {
     const handleClickOutside = (e: MouseEvent) => {
       if (dropdownRef.current && !dropdownRef.current.contains(e.target as Node)) {
@@ -64,7 +44,6 @@ export default function ThemePicker({ value, onChange }: ThemePickerProps) {
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
 
-  // Close on Escape
   useEffect(() => {
     const handleEscape = (e: KeyboardEvent) => {
       if (e.key === "Escape") setIsOpen(false);
@@ -88,7 +67,7 @@ export default function ThemePicker({ value, onChange }: ThemePickerProps) {
         aria-expanded={isOpen}
         aria-haspopup="listbox"
       >
-        <PaletteIcon />
+        <PaletteIcon size={18} />
       </button>
 
       {isOpen && (
@@ -105,17 +84,12 @@ export default function ThemePicker({ value, onChange }: ThemePickerProps) {
               role="option"
               aria-selected={internalTheme === theme.id}
             >
-              <div
-                className="theme-swatch"
-                style={{ background: theme.gradient }}
-              />
+              <div className="theme-swatch" style={{ background: theme.gradient }} />
               <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-start" }}>
                 <span style={{ fontWeight: 600 }}>{theme.name}</span>
-                <span style={{ fontSize: "0.75rem", opacity: 0.6 }}>{theme.subtitle}</span>
+                <span style={{ fontSize: "0.7rem", opacity: 0.7 }}>{theme.subtitle}</span>
               </div>
-              {internalTheme === theme.id && (
-                <CheckIcon style={{ marginLeft: "auto", width: 16, height: 16 }} />
-              )}
+              {internalTheme === theme.id && <CheckIcon size={14} style={{ marginLeft: "auto" }} />}
             </button>
           ))}
         </div>

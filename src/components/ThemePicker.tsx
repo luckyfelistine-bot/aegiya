@@ -7,8 +7,8 @@ import {
 } from "@/components/SvgIcons";
 
 interface ThemePickerProps {
-  currentTheme: string;
-  onThemeChange: (theme: string) => void;
+  value?: string;        // Changed from currentTheme to match page.tsx
+  onChange?: (theme: string) => void;  // Changed from onThemeChange
 }
 
 const themes = [
@@ -44,9 +44,17 @@ const themes = [
   },
 ];
 
-export default function ThemePicker({ currentTheme, onThemeChange }: ThemePickerProps) {
+export default function ThemePicker({ value, onChange }: ThemePickerProps) {
   const [isOpen, setIsOpen] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
+  const [internalTheme, setInternalTheme] = useState(value || themes[0].id);
+
+  // Sync external value if provided
+  useEffect(() => {
+    if (value && value !== internalTheme) {
+      setInternalTheme(value);
+    }
+  }, [value, internalTheme]);
 
   // Close on outside click
   useEffect(() => {
@@ -68,6 +76,12 @@ export default function ThemePicker({ currentTheme, onThemeChange }: ThemePicker
     return () => document.removeEventListener("keydown", handleEscape);
   }, []);
 
+  const handleThemeSelect = (themeId: string) => {
+    setInternalTheme(themeId);
+    if (onChange) onChange(themeId);
+    setIsOpen(false);
+  };
+
   return (
     <div className="theme-switcher" ref={dropdownRef}>
       <button
@@ -88,13 +102,10 @@ export default function ThemePicker({ currentTheme, onThemeChange }: ThemePicker
         {themes.map((theme) => (
           <button
             key={theme.id}
-            className={`theme-option ${currentTheme === theme.id ? "active" : ""}`}
-            onClick={() => {
-              onThemeChange(theme.id);
-              setIsOpen(false);
-            }}
+            className={`theme-option ${internalTheme === theme.id ? "active" : ""}`}
+            onClick={() => handleThemeSelect(theme.id)}
             role="option"
-            aria-selected={currentTheme === theme.id}
+            aria-selected={internalTheme === theme.id}
           >
             <div
               className="theme-swatch"
@@ -104,7 +115,7 @@ export default function ThemePicker({ currentTheme, onThemeChange }: ThemePicker
               <span style={{ fontWeight: 600 }}>{theme.name}</span>
               <span style={{ fontSize: "0.75rem", opacity: 0.6 }}>{theme.subtitle}</span>
             </div>
-            {currentTheme === theme.id && (
+            {internalTheme === theme.id && (
               <CheckIcon style={{ marginLeft: "auto", width: 16, height: 16 }} />
             )}
           </button>

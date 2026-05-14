@@ -828,3 +828,48 @@ body {
   flex-direction: column;
   height: 100%;
 }
+
+@keyframes fadeInUp {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* Ensure ThemePicker inside dropdown doesn't float */
+.theme-switcher {
+  position: relative !important;
+  bottom: auto !important;
+  right: auto !important;
+  width: 100%;
+}
+.theme-switcher .theme-btn {
+  width: 100%;
+  justify-content: flex-start;
+  background: transparent;
+  border: none;
+  padding: 8px 12px;
+}
+.theme-switcher .theme-dropdown {
+  position: absolute;
+  bottom: auto;
+  top: 100%;
+  left: 0;
+  right: auto;
+  width: 220px;
+}
+
+/* Mobile split view fix for workspace */
+@media (max-width: 768px) {
+  .editor-preview-container.split {
+    flex-direction: column !important;
+  }
+  .editor-preview-container.split .pane {
+    width: 100% !important;
+    min-height: 300px;
+  }
+}

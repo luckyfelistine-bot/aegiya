@@ -188,7 +188,7 @@ export function ChatWindow({ onClose, onToolCall }: ChatWindowProps) {
         }
 
         // Check for tool calls in content
-        const toolRegex = /\[TOOL:(\w+)\](.*?)(?=\[TOOL:|\[\/TOOL\]|$)/gs;
+        const toolRegex = /\[TOOL:(\w+)\]([\s\S]*?)(?=\[TOOL:|\[\/TOOL\]|$)/g;
         const matches = [...assistantContent.matchAll(toolRegex)];
         for (const match of matches) {
           const toolName = match[1];

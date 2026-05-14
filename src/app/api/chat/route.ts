@@ -1,32 +1,31 @@
 import { NextRequest, NextResponse } from "next/server";
-import { buildSystemPrompt } from "@/lib/systemPrompt";
-import { groq } from "@/lib/groq";
+import Groq from "groq-sdk";
+
+// Server-side Groq client (safe)
+const groq = new Groq({
+  apiKey: process.env.GROQ_API_KEY || "",
+});
 
 export const runtime = "edge";
 export const maxDuration = 30;
 
 export async function POST(req: NextRequest) {
   try {
-    const { messages } = await req.json();
+    const { messages, model = "llama-3.3-70b-versatile" } = await req.json();
 
     if (!process.env.GROQ_API_KEY) {
       return NextResponse.json(
-        { error: "GROQ_API_KEY not configured" },
+        { error: "GROQ_API_KEY not configured on server" },
         { status: 500 }
       );
     }
 
-    const systemPrompt = buildSystemPrompt();
-
     const stream = await groq.chat.completions.create({
-      model: "llama-3.3-70b-versatile",
-      messages: [
-        { role: "system", content: systemPrompt },
-        ...messages.map((m: any) => ({ role: m.role, content: m.content })),
-      ],
-      stream: true,
-      temperature: 0.8,
+      model,
+      messages,
+      temperature: 0.7,
       max_tokens: 4096,
+      stream: true,
     });
 
     const encoder = new TextEncoder();
@@ -42,8 +41,8 @@ export async function POST(req: NextRequest) {
           }
           controller.enqueue(encoder.encode("data: [DONE]\n\n"));
           controller.close();
-        } catch (error) {
-          controller.error(error);
+        } catch (err) {
+          controller.error(err);
         }
       },
     });

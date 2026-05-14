@@ -22,6 +22,7 @@ interface Message {
   timestamp: number;
   attachments?: Attachment[];
   toolCalls?: ToolCall[];
+  isStreaming?: boolean;
 }
 
 interface Attachment {
@@ -52,8 +53,9 @@ export function ChatWindow({ onClose, onToolCall }: ChatWindowProps) {
   const [attachments, setAttachments] = useState<Attachment[]>([]);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
-  // Load messages from IndexedDB
+  // Load messages
   useEffect(() => {
     const load = async () => {
       try {
@@ -87,22 +89,21 @@ export function ChatWindow({ onClose, onToolCall }: ChatWindowProps) {
     const el = inputRef.current;
     if (el) {
       el.style.height = "auto";
-      el.style.height = el.scrollHeight + "px";
+      el.style.height = `${el.scrollHeight}px`;
     }
   }, [input]);
 
-  // Helper to generate unique IDs
   const generateId = () => `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
 
-  const handleSend = async () => {
-    if ((!input.trim() && attachments.length === 0) || isLoading) return;
+  const sendMessage = async (text: string, fileAttachments: Attachment[] = []) => {
+    if ((!text.trim() && fileAttachments.length === 0) || isLoading) return;
 
     const userMsg: Message = {
       id: generateId(),
       role: "user",
-      content: input,
+      content: text,
       timestamp: Date.now(),
-      attachments: attachments.length ? attachments : undefined,
+      attachments: fileAttachments.length ? fileAttachments : undefined,
     };
 
     setMessages(prev => [...prev, userMsg]);
@@ -110,22 +111,18 @@ export function ChatWindow({ onClose, onToolCall }: ChatWindowProps) {
     setAttachments([]);
     setIsLoading(true);
 
-    // Save user message to IndexedDB
     await memory.saveMessage(userMsg);
 
-    // Prepare messages for API (last 20)
     const apiMessages = [...messages, userMsg].slice(-20).map(m => ({
       role: m.role,
       content: m.content + (m.attachments ? `\n\n[Attachments: ${m.attachments.map(a => a.name).join(", ")}]` : ""),
     }));
 
-    // Add system prompt
     const finalMessages = [
       { role: "system", content: SYSTEM_PROMPT },
       ...apiMessages,
     ];
 
-    // Create placeholder for assistant message
     const assistantId = generateId();
     setMessages(prev => [...prev, {
       id: assistantId,
@@ -133,7 +130,7 @@ export function ChatWindow({ onClose, onToolCall }: ChatWindowProps) {
       content: "",
       timestamp: Date.now(),
       isStreaming: true,
-    } as any]);
+    }]);
 
     try {
       const response = await fetch("/api/chat", {
@@ -142,9 +139,7 @@ export function ChatWindow({ onClose, onToolCall }: ChatWindowProps) {
         body: JSON.stringify({ messages: finalMessages, model }),
       });
 
-      if (!response.ok) {
-        throw new Error(`API error: ${response.status}`);
-      }
+      if (!response.ok) throw new Error(`API error: ${response.status}`);
 
       const reader = response.body?.getReader();
       if (!reader) throw new Error("No response body");
@@ -175,14 +170,13 @@ export function ChatWindow({ onClose, onToolCall }: ChatWindowProps) {
                   )
                 );
               }
-            } catch (e) {
-              // Ignore malformed JSON
+            } catch {
+              // ignore malformed JSON
             }
           }
         }
       }
 
-      // Finalize assistant message
       setMessages(prev =>
         prev.map(msg =>
           msg.id === assistantId
@@ -191,7 +185,6 @@ export function ChatWindow({ onClose, onToolCall }: ChatWindowProps) {
         )
       );
 
-      // Save assistant message to IndexedDB
       await memory.saveMessage({
         id: assistantId,
         role: "assistant",
@@ -215,12 +208,20 @@ export function ChatWindow({ onClose, onToolCall }: ChatWindowProps) {
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === "Enter" && !e.shiftKey) {
       e.preventDefault();
-      handleSend();
+      sendMessage(input, attachments);
     }
   };
 
-  const handleFileUpload = (files: Attachment[]) => {
-    setAttachments(prev => [...prev, ...files]);
+  const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = (ev) => {
+      const content = ev.target?.result as string;
+      setAttachments(prev => [...prev, { name: file.name, type: file.type, content }]);
+    };
+    reader.readAsText(file);
+    e.target.value = "";
   };
 
   const removeAttachment = (index: number) => {
@@ -233,22 +234,18 @@ export function ChatWindow({ onClose, onToolCall }: ChatWindowProps) {
 
   return (
     <div className="chat-window">
-      {/* Header */}
       <div className="chat-header">
         <div className="chat-title">
-          <SparklesIcon />
+          <SparklesIcon size={20} />
           <span>Byeol</span>
         </div>
         <div className="chat-actions">
           <div className="model-picker">
-            <button
-              className="model-btn"
-              onClick={() => setShowModelPicker(!showModelPicker)}
-            >
+            <button className="model-btn" onClick={() => setShowModelPicker(!showModelPicker)}>
               {model === GROQ_MODELS.DEFAULT ? "Llama 3.3" : "Llama 3.1 Fast"}
             </button>
             {showModelPicker && (
-              <div className="model-dropdown glass">
+              <div className="model-dropdown glass-strong">
                 <button
                   className={model === GROQ_MODELS.DEFAULT ? "active" : ""}
                   onClick={() => { setModel(GROQ_MODELS.DEFAULT); setShowModelPicker(false); }}
@@ -265,17 +262,16 @@ export function ChatWindow({ onClose, onToolCall }: ChatWindowProps) {
             )}
           </div>
           <button className="icon-btn" onClick={onClose} aria-label="Close chat">
-            <XIcon />
+            <XIcon size={18} />
           </button>
         </div>
       </div>
 
-      {/* Messages */}
       <div className="chat-messages">
         {messages.map((msg) => (
           <motion.div
             key={msg.id}
-            initial={{ opacity: 0, y: 20 }}
+            initial={{ opacity: 0, y: 10 }}
             animate={{ opacity: 1, y: 0 }}
             className={`message ${msg.role}`}
           >
@@ -285,10 +281,7 @@ export function ChatWindow({ onClose, onToolCall }: ChatWindowProps) {
             <div className="message-content">
               <div className="message-text">
                 {msg.role === "assistant" ? (
-                  <FormattedMessage
-                    content={msg.content}
-                    onApplyCode={applyCodeToEditor}
-                  />
+                  <FormattedMessage content={msg.content} onApplyCode={applyCodeToEditor} />
                 ) : (
                   msg.content
                 )}
@@ -297,20 +290,8 @@ export function ChatWindow({ onClose, onToolCall }: ChatWindowProps) {
                 <div className="message-attachments">
                   {msg.attachments.map((att, i) => (
                     <div key={i} className="attachment-badge">
-                      <FileIcon />
+                      <FileIcon size={12} />
                       <span>{att.name}</span>
-                    </div>
-                  ))}
-                </div>
-              )}
-              {msg.toolCalls && (
-                <div className="tool-calls">
-                  {msg.toolCalls.map((tc) => (
-                    <div key={tc.id} className={`tool-call ${tc.status}`}>
-                      <CodeIcon />
-                      <span>{tc.name}</span>
-                      {tc.status === "completed" && <CheckIcon />}
-                      {tc.status === "running" && <div className="tool-spinner" />}
                     </div>
                   ))}
                 </div>
@@ -336,43 +317,31 @@ export function ChatWindow({ onClose, onToolCall }: ChatWindowProps) {
         <div ref={messagesEndRef} />
       </div>
 
-      {/* Input */}
       <div className="chat-input-area">
         {attachments.length > 0 && (
           <div className="attachment-list">
             {attachments.map((att, i) => (
               <div key={i} className="attachment-chip">
-                <FileIcon />
+                <FileIcon size={12} />
                 <span>{att.name}</span>
                 <button onClick={() => removeAttachment(i)}>
-                  <XIcon />
+                  <XIcon size={12} />
                 </button>
               </div>
             ))}
           </div>
         )}
         <div className="chat-input-row">
-          <label className="input-icon-btn" title="Attach file">
-            <PaperclipIcon />
-            <input
-              type="file"
-              hidden
-              accept=".txt,.html,.css,.js,.pdf,.docx"
-              onChange={(e) => {
-                const file = e.target.files?.[0];
-                if (file) {
-                  // Simple file reading (you can extend this later)
-                  const reader = new FileReader();
-                  reader.onload = (ev) => {
-                    const content = ev.target?.result as string;
-                    setAttachments(prev => [...prev, { name: file.name, type: file.type, content }]);
-                  };
-                  reader.readAsText(file);
-                }
-                e.target.value = "";
-              }}
-            />
-          </label>
+          <button className="input-icon-btn" onClick={() => fileInputRef.current?.click()} title="Attach file">
+            <PaperclipIcon size={18} />
+          </button>
+          <input
+            ref={fileInputRef}
+            type="file"
+            hidden
+            accept=".txt,.html,.css,.js,.pdf,.docx"
+            onChange={handleFileSelect}
+          />
           <textarea
             ref={inputRef}
             value={input}
@@ -383,10 +352,10 @@ export function ChatWindow({ onClose, onToolCall }: ChatWindowProps) {
           />
           <button
             className="send-btn"
-            onClick={handleSend}
+            onClick={() => sendMessage(input, attachments)}
             disabled={isLoading || (!input.trim() && attachments.length === 0)}
           >
-            <SendIcon />
+            <SendIcon size={18} />
           </button>
         </div>
       </div>
@@ -394,7 +363,6 @@ export function ChatWindow({ onClose, onToolCall }: ChatWindowProps) {
   );
 }
 
-// Helper component to format assistant messages with code blocks
 function FormattedMessage({ content, onApplyCode }: { content: string; onApplyCode: (code: string) => void }) {
   const parts = content.split(/(\`\`\`[\w]*\n[\s\S]*?\n\`\`\`|\`[^\`]+\`)/g);
   return (
@@ -408,7 +376,7 @@ function FormattedMessage({ content, onApplyCode }: { content: string; onApplyCo
               <div className="code-block-header">
                 <span>{lang || "code"}</span>
                 <button onClick={() => onApplyCode(code)}>
-                  <CodeIcon /> Apply to Editor
+                  <CodeIcon size={14} /> Apply to Editor
                 </button>
               </div>
               <pre><code>{code}</code></pre>

@@ -297,13 +297,6 @@ export default function Home() {
           <ChatWindow onClose={() => setChatOpen(false)} onToolCall={handleToolCall} />
         </div>
       )}
-
-      {/* Floating Chat Button */}
-      {!chatOpen && currentView !== "chat" && (
-        <button className="fab-chat" onClick={() => (isMobile ? setChatOpen(true) : setChatOpen(true))}>
-          <MessageCircleIcon />
-        </button>
-      )}
     </div>
   );
 }

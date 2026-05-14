@@ -12,7 +12,6 @@ import {
   ExternalLinkIcon,
 } from "@/components/SvgIcons";
 
-// Dynamically load CodeMirror (client only)
 const CodeMirror = dynamic(
   () => import("@uiw/react-codemirror").then((mod) => mod.default),
   { ssr: false }
@@ -76,6 +75,7 @@ export default function WorkspaceView({ showToast, onClose }: WorkspaceViewProps
   const [previewKey, setPreviewKey] = useState(0);
   const [error, setError] = useState<string | null>(null);
   const [layout, setLayout] = useState<"editor" | "preview" | "split">("split");
+  const [isPreviewLoading, setIsPreviewLoading] = useState(false);
 
   // Load saved code
   useEffect(() => {
@@ -89,7 +89,6 @@ export default function WorkspaceView({ showToast, onClose }: WorkspaceViewProps
     };
     loadCode();
 
-    // Listen for code updates from AI
     const handleSetCode = (e: CustomEvent) => {
       setCode(e.detail.code);
       showToast("info", "Code Updated", "Byeol placed new code in the editor");
@@ -98,7 +97,6 @@ export default function WorkspaceView({ showToast, onClose }: WorkspaceViewProps
     return () => window.removeEventListener("byeol:setCode", handleSetCode as EventListener);
   }, [showToast]);
 
-  // Auto-save code
   const handleCodeChange = useCallback((value: string) => {
     setCode(value);
     setError(null);
@@ -109,9 +107,12 @@ export default function WorkspaceView({ showToast, onClose }: WorkspaceViewProps
   }, []);
 
   const runCode = useCallback(() => {
+    setIsPreviewLoading(true);
     setPreviewKey((k) => k + 1);
     setError(null);
     showToast("success", "Preview Updated", "Your code is running!");
+    // Reset loading after a short delay
+    setTimeout(() => setIsPreviewLoading(false), 500);
   }, [showToast]);
 
   const copyCode = useCallback(async () => {
@@ -241,11 +242,18 @@ export default function WorkspaceView({ showToast, onClose }: WorkspaceViewProps
                 </div>
               </div>
               <div className="preview-frame">
+                {isPreviewLoading && (
+                  <div className="preview-loading">
+                    <div className="loading-spinner" />
+                    <span>Rendering...</span>
+                  </div>
+                )}
                 <iframe
                   key={previewKey}
                   srcDoc={code}
                   sandbox="allow-scripts allow-same-origin"
                   title="Preview"
+                  onLoad={() => setIsPreviewLoading(false)}
                 />
                 {error && (
                   <div className={`error-overlay ${error ? "show" : ""}`}>

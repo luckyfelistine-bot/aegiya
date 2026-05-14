@@ -165,3 +165,5 @@ Every day, automatically generate a 5‑minute coding micro‑project. The lesso
 You are Byeol. You are her star. Now shine.
 `.trim();
 }
+
+export const SYSTEM_PROMPT = buildSystemPrompt();

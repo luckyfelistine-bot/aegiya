@@ -34,10 +34,6 @@ interface UserStats {
   streak: number;
 }
 
-interface DashboardPrefs {
-  hiddenTiles: string[];
-}
-
 interface DashboardProps {
   isOpen: boolean;
   onClose: () => void;
@@ -133,6 +129,7 @@ export default function Dashboard({ isOpen, onClose, onNavigate }: DashboardProp
     },
   ];
 
+  // Load stats only – hiddenTiles persistence temporarily disabled
   useEffect(() => {
     const loadData = async () => {
       try {
@@ -140,17 +137,12 @@ export default function Dashboard({ isOpen, onClose, onNavigate }: DashboardProp
         const projects = await memory.getProjects();
         const lessons = (await memory.getProfile("lessonsCompleted")) || 0;
         const streak = (await memory.getProfile("streak")) || 0;
-        const prefs = await memory.getDashboardPrefs();
 
         setStats({
           projects: projects?.length || 0,
           lessons,
           streak,
         });
-
-        if (prefs?.hiddenTiles) {
-          setHiddenTiles(prefs.hiddenTiles);
-        }
       } catch (error) {
         console.error("Failed to load dashboard data", error);
       }
@@ -184,21 +176,13 @@ export default function Dashboard({ isOpen, onClose, onNavigate }: DashboardProp
     [onNavigate, onClose]
   );
 
-  const toggleTileVisibility = useCallback(async (tileId: string) => {
-    setHiddenTiles((prev) => {
-      const next = prev.includes(tileId)
+  const toggleTileVisibility = useCallback((tileId: string) => {
+    setHiddenTiles((prev) =>
+      prev.includes(tileId)
         ? prev.filter((id) => id !== tileId)
-        : [...prev, tileId];
-
-      (async () => {
-        try {
-          const { memory } = await import("@/lib/memory");
-          await memory.setDashboardPrefs({ hiddenTiles: next });
-        } catch {}
-      })();
-
-      return next;
-    });
+        : [...prev, tileId]
+    );
+    // Persistence disabled – state resets on refresh
   }, []);
 
   const visibleTiles = allTiles.filter((tile) => !hiddenTiles.includes(tile.id));

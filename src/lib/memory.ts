@@ -160,5 +160,14 @@ export const memory = {
       req.onsuccess = () => resolve(req.result.reverse());
       req.onerror = () => reject(req.error);
     });
+ },
+
+  async getDashboardPrefs(): Promise<DashboardPrefs> {
+    const prefs = await this.getProfile("dashboard_prefs");
+    return prefs || defaultDashboardPrefs;
+  },
+
+  async setDashboardPrefs(prefs: DashboardPrefs): Promise<void> {
+    await this.setProfile("dashboard_prefs", prefs);
   },
 };

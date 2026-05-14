@@ -32,7 +32,7 @@ export function useTheme(): [ThemeId, (theme: ThemeId) => Promise<void>, boolean
   useEffect(() => {
     const loadTheme = async () => {
       try {
-        const { default: memory } = await import("@/lib/memory");
+        const { memory } = await import("@/lib/memory"); // ✅ fixed
         const saved = await memory.getProfile("theme");
         if (saved && isValidTheme(saved)) {
           setThemeState(saved as ThemeId);
@@ -57,7 +57,7 @@ export function useTheme(): [ThemeId, (theme: ThemeId) => Promise<void>, boolean
     document.documentElement.setAttribute("data-theme", newTheme);
 
     try {
-      const { default: memory } = await import("@/lib/memory");
+      const { memory } = await import("@/lib/memory"); // ✅ fixed
       await memory.setProfile("theme", newTheme);
     } catch {
       // Silently fail if memory is unavailable

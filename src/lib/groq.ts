@@ -6,6 +6,8 @@ const groqClient = new Groq({
 
 export const groq = groqClient;
 
+export const CHAT_MODEL = GROQ_MODELS.DEFAULT;
+
 export const GROQ_MODELS = {
   DEFAULT: "llama-3.1-70b-versatile",
   FAST: "mixtral-8x7b-32768",

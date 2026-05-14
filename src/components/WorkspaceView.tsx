@@ -45,6 +45,7 @@ export default function WorkspaceView({ showToast, onClose }: WorkspaceViewProps
   const [error, setError] = useState<string | null>(null);
   const [layout, setLayout] = useState<"editor" | "preview" | "split">("split");
 
+  // Load saved code
   useEffect(() => {
     const loadCode = async () => {
       try {
@@ -81,7 +82,7 @@ export default function WorkspaceView({ showToast, onClose }: WorkspaceViewProps
     try {
       await navigator.clipboard.writeText(code);
       showToast("success", "Copied!", "Code copied to clipboard");
-    } catch { showToast("error", "Copy Failed", "Could not copy to clipboard"); }
+    } catch { showToast("error", "Copy Failed", "Could not copy"); }
   }, [code, showToast]);
 
   const downloadCode = useCallback(() => {
@@ -91,12 +92,10 @@ export default function WorkspaceView({ showToast, onClose }: WorkspaceViewProps
       const a = document.createElement("a");
       a.href = url;
       a.download = "byeol-project.html";
-      document.body.appendChild(a);
       a.click();
-      document.body.removeChild(a);
       URL.revokeObjectURL(url);
       showToast("success", "Downloaded!", "Project saved");
-    } catch { showToast("error", "Download Failed", "Could not download file"); }
+    } catch { showToast("error", "Download Failed", "Could not download"); }
   }, [code, showToast]);
 
   const openPreview = useCallback(() => {
@@ -105,27 +104,8 @@ export default function WorkspaceView({ showToast, onClose }: WorkspaceViewProps
     window.open(url, "_blank");
   }, [code]);
 
-  // Inline styles to force correct layout
-  const splitContainerStyle: React.CSSProperties = {
-    display: 'flex',
-    flexDirection: 'row',
-    gap: '12px',
-    width: '100%',
-    height: '100%',
-  };
-
-  const paneStyle: React.CSSProperties = {
-    flex: 1,
-    minWidth: 0,
-    display: 'flex',
-    flexDirection: 'column',
-    overflow: 'hidden',
-  };
-
-  const editorPreviewStyle = (isSplit: boolean) => {
-    if (!isSplit) return { width: '100%', height: '100%' };
-    return splitContainerStyle;
-  };
+  // Determine container class based on layout
+  const containerClass = `editor-preview-container ${layout}`;
 
   return (
     <div className="workspace-view">
@@ -139,55 +119,59 @@ export default function WorkspaceView({ showToast, onClose }: WorkspaceViewProps
           <button className={`toolbar-btn ${layout === "split" ? "active" : ""}`} onClick={() => setLayout("split")}>Split</button>
         </div>
         <div className="toolbar-right">
-          <button className="toolbar-btn" onClick={copyCode}><CopyIcon /> Copy</button>
-          <button className="toolbar-btn" onClick={downloadCode}><DownloadIcon /> Download</button>
-          <button className="toolbar-btn" onClick={runCode}><PlayIcon /> Run</button>
-          <button className="toolbar-btn" onClick={openPreview}><ExternalLinkIcon /> New Tab</button>
+          <button className="toolbar-btn" onClick={copyCode}><CopyIcon size={14} /> Copy</button>
+          <button className="toolbar-btn" onClick={downloadCode}><DownloadIcon size={14} /> Download</button>
+          <button className="toolbar-btn" onClick={runCode}><PlayIcon size={14} /> Run</button>
+          <button className="toolbar-btn" onClick={openPreview}><ExternalLinkIcon size={14} /> New Tab</button>
         </div>
       </div>
 
       {/* Main area */}
       <div className="workspace-body">
-        <div style={editorPreviewStyle(layout === "split")}>
+        <div className={containerClass}>
           {(layout === "editor" || layout === "split") && (
-            <div style={layout === "split" ? paneStyle : { ...paneStyle, width: '100%' }} className="pane glass">
+            <div className="pane glass">
               <div className="pane-header">
                 <div className="pane-title">Source Code</div>
                 <div className="pane-actions">
-                  <button className="icon-btn" title="Copy" onClick={copyCode}><CopyIcon /></button>
-                  <button className="icon-btn" title="Download" onClick={downloadCode}><DownloadIcon /></button>
-                  <button className="icon-btn" title="Run" onClick={runCode}><PlayIcon /></button>
+                  <button className="icon-btn" title="Copy" onClick={copyCode}><CopyIcon size={14} /></button>
+                  <button className="icon-btn" title="Download" onClick={downloadCode}><DownloadIcon size={14} /></button>
+                  <button className="icon-btn" title="Run" onClick={runCode}><PlayIcon size={14} /></button>
                 </div>
               </div>
-              <div className="pane-content" style={{ flex: 1, overflow: 'auto' }}>
+              <div className="pane-content">
                 <CodeMirror
                   value={code}
                   height="100%"
                   theme="dark"
                   extensions={[html()]}
                   onChange={handleCodeChange}
-                  basicSetup={{ lineNumbers: true, highlightActiveLineGutter: true, highlightActiveLine: true }}
+                  basicSetup={{
+                    lineNumbers: true,
+                    highlightActiveLineGutter: true,
+                    highlightActiveLine: true,
+                    foldGutter: false,
+                  }}
                 />
               </div>
             </div>
           )}
 
           {(layout === "preview" || layout === "split") && (
-            <div style={layout === "split" ? paneStyle : { ...paneStyle, width: '100%' }} className="pane glass">
+            <div className="pane glass">
               <div className="pane-header">
                 <div className="pane-title">Live Preview</div>
                 <div className="pane-actions">
-                  <button className="icon-btn" title="Refresh" onClick={runCode}><RefreshIcon /></button>
-                  <button className="icon-btn" title="Open in new tab" onClick={openPreview}><ExternalLinkIcon /></button>
+                  <button className="icon-btn" title="Refresh" onClick={runCode}><RefreshIcon size={14} /></button>
+                  <button className="icon-btn" title="Open in new tab" onClick={openPreview}><ExternalLinkIcon size={14} /></button>
                 </div>
               </div>
-              <div className="preview-frame" style={{ flex: 1, position: 'relative' }}>
+              <div className="preview-frame">
                 <iframe
                   key={previewKey}
                   srcDoc={code}
                   sandbox="allow-scripts allow-same-origin"
                   title="Preview"
-                  style={{ width: '100%', height: '100%', border: 'none' }}
                 />
                 {error && <div className="error-overlay show"><div>{error}</div></div>}
               </div>

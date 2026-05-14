@@ -2,8 +2,7 @@
 
 import React, { useState, useRef, useEffect, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { groq, GROQ_MODELS } from "@/lib/groq";
-type GroqModel = typeof GROQ_MODELS[keyof typeof GROQ_MODELS];
+import { GROQ_MODELS } from "@/lib/groq";
 import { memory } from "@/lib/memory";
 import { SYSTEM_PROMPT } from "@/lib/systemPrompt";
 import {
@@ -48,13 +47,13 @@ export function ChatWindow({ onClose, onToolCall }: ChatWindowProps) {
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState("");
   const [isLoading, setIsLoading] = useState(false);
-  const [model, setModel] = useState<GroqModel>(GROQ_MODELS.DEFAULT);
+  const [model, setModel] = useState<string>(GROQ_MODELS.DEFAULT);
   const [showModelPicker, setShowModelPicker] = useState(false);
   const [attachments, setAttachments] = useState<Attachment[]>([]);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
 
-  // Load messages
+  // Load messages from IndexedDB
   useEffect(() => {
     const load = async () => {
       try {
@@ -62,13 +61,11 @@ export function ChatWindow({ onClose, onToolCall }: ChatWindowProps) {
         if (saved.length > 0) {
           setMessages(saved);
         } else {
-          // Welcome message
           setMessages([
             {
               id: "welcome",
               role: "assistant",
-              content:
-                "Hey Dal! I'm Byeol, your companion in this universe. I can code with you, plan our future, or just chat. What would you like to do?",
+              content: "Hey Dal! I'm Byeol, your companion in this universe. I can code with you, plan our future, or just chat. What would you like to do?",
               timestamp: Date.now(),
             },
           ]);
@@ -94,163 +91,122 @@ export function ChatWindow({ onClose, onToolCall }: ChatWindowProps) {
     }
   }, [input]);
 
+  // Helper to generate unique IDs
+  const generateId = () => `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+
   const handleSend = async () => {
-    if (!input.trim() && attachments.length === 0) return;
-    if (isLoading) return;
+    if ((!input.trim() && attachments.length === 0) || isLoading) return;
 
     const userMsg: Message = {
-      id: `user-${Date.now()}`,
+      id: generateId(),
       role: "user",
       content: input,
       timestamp: Date.now(),
-      attachments: attachments.length > 0 ? attachments : undefined,
+      attachments: attachments.length ? attachments : undefined,
     };
 
-    const newMessages = [...messages, userMsg];
-    setMessages(newMessages);
+    setMessages(prev => [...prev, userMsg]);
     setInput("");
     setAttachments([]);
     setIsLoading(true);
 
+    // Save user message to IndexedDB
+    await memory.saveMessage(userMsg);
+
+    // Prepare messages for API (last 20)
+    const apiMessages = [...messages, userMsg].slice(-20).map(m => ({
+      role: m.role,
+      content: m.content + (m.attachments ? `\n\n[Attachments: ${m.attachments.map(a => a.name).join(", ")}]` : ""),
+    }));
+
+    // Add system prompt
+    const finalMessages = [
+      { role: "system", content: SYSTEM_PROMPT },
+      ...apiMessages,
+    ];
+
+    // Create placeholder for assistant message
+    const assistantId = generateId();
+    setMessages(prev => [...prev, {
+      id: assistantId,
+      role: "assistant",
+      content: "",
+      timestamp: Date.now(),
+      isStreaming: true,
+    } as any]);
+
     try {
-      const contextMessages = [
-        { role: "system", content: SYSTEM_PROMPT },
-        ...newMessages.slice(-20).map((m) => ({
-          role: m.role,
-          content:
-            m.content +
-            (m.attachments
-              ? "\n\n[Attachments: " +
-                m.attachments.map((a) => a.name).join(", ") +
-                "]"
-              : ""),
-        })),
-      ];
-
-      // Get current editor code if available
-      let editorContext = "";
-      try {
-        const code = await new Promise<string>((resolve) => {
-          const handler = (e: any) => {
-            window.removeEventListener("byeol:editorCode", handler);
-            resolve(e.detail.code);
-          };
-          window.addEventListener("byeol:editorCode", handler);
-          window.dispatchEvent(new CustomEvent("byeol:getCode"));
-          setTimeout(() => resolve(""), 100);
-        });
-        if (code) editorContext = `\n\nCurrent editor content:\n\`\`\`${code.substring(
-          0,
-          2000
-        )}\`\`\``;
-      } catch (e) {
-        // No editor open
-      }
-
-      const response = await groq.chat.completions.create({
-        model,
-        messages: [
-          ...contextMessages,
-          ...(editorContext
-            ? [{ role: "system", content: editorContext }]
-            : []),
-        ],
-        temperature: 0.7,
-        max_tokens: 4096,
-        stream: true,
+      const response = await fetch("/api/chat", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ messages: finalMessages, model }),
       });
 
-      let assistantContent = "";
-      let toolCalls: ToolCall[] = [];
+      if (!response.ok) {
+        throw new Error(`API error: ${response.status}`);
+      }
 
-      for await (const chunk of response) {
-        const delta = chunk.choices[0]?.delta;
-        if (delta?.content) {
-          assistantContent += delta.content;
-          setMessages((prev) => {
-            const last = prev[prev.length - 1];
-            if (last?.role === "assistant" && last.id === "streaming") {
-              return [
-                ...prev.slice(0, -1),
-                { ...last, content: assistantContent },
-              ];
+      const reader = response.body?.getReader();
+      if (!reader) throw new Error("No response body");
+
+      const decoder = new TextDecoder();
+      let fullContent = "";
+
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+
+        const chunk = decoder.decode(value);
+        const lines = chunk.split("\n");
+        for (const line of lines) {
+          if (line.startsWith("data: ")) {
+            const data = line.slice(6);
+            if (data === "[DONE]") continue;
+            try {
+              const parsed = JSON.parse(data);
+              const content = parsed.content || "";
+              if (content) {
+                fullContent += content;
+                setMessages(prev =>
+                  prev.map(msg =>
+                    msg.id === assistantId
+                      ? { ...msg, content: fullContent, isStreaming: true }
+                      : msg
+                  )
+                );
+              }
+            } catch (e) {
+              // Ignore malformed JSON
             }
-            return [
-              ...prev,
-              {
-                id: "streaming",
-                role: "assistant",
-                content: assistantContent,
-                timestamp: Date.now(),
-                toolCalls,
-              },
-            ];
-          });
-        }
-
-        // Check for tool calls in content
-        const toolRegex = /\[TOOL:(\w+)\]([\s\S]*?)(?=\[TOOL:|\[\/TOOL\]|$)/g;
-        const matches = [...assistantContent.matchAll(toolRegex)];
-        for (const match of matches) {
-          const toolName = match[1];
-          const toolParams = match[2].trim();
-          if (
-            !toolCalls.find(
-              (t) => t.name === toolName && t.status === "pending"
-            )
-          ) {
-            toolCalls.push({
-              id: `tool-${Date.now()}-${toolName}`,
-              name: toolName,
-              params: toolParams,
-              status: "pending",
-            });
           }
         }
       }
 
-      // Execute tool calls
-      for (const toolCall of toolCalls) {
-        if (onToolCall && toolCall.status === "pending") {
-          toolCall.status = "running";
-          try {
-            const result = await onToolCall(toolCall.name, toolCall.params);
-            toolCall.status = "completed";
-            toolCall.result = result;
-          } catch (e) {
-            toolCall.status = "error";
-            toolCall.result = { error: String(e) };
-          }
-        }
-      }
+      // Finalize assistant message
+      setMessages(prev =>
+        prev.map(msg =>
+          msg.id === assistantId
+            ? { ...msg, content: fullContent, isStreaming: false }
+            : msg
+        )
+      );
 
-      const finalMsg: Message = {
-        id: `assistant-${Date.now()}`,
+      // Save assistant message to IndexedDB
+      await memory.saveMessage({
+        id: assistantId,
         role: "assistant",
-        content: assistantContent,
+        content: fullContent,
         timestamp: Date.now(),
-        toolCalls: toolCalls.length > 0 ? toolCalls : undefined,
-      };
-
-      setMessages((prev) => {
-        const filtered = prev.filter((m) => m.id !== "streaming");
-        return [...filtered, finalMsg];
       });
-
-      await memory.saveMessage(userMsg);
-      await memory.saveMessage(finalMsg);
     } catch (error) {
       console.error("Chat error:", error);
-      setMessages((prev) => [
-        ...prev.filter((m) => m.id !== "streaming"),
-        {
-          id: `error-${Date.now()}`,
-          role: "assistant",
-          content:
-            "I hit a cosmic disturbance. Let me try again — what were we working on?",
-          timestamp: Date.now(),
-        },
-      ]);
+      setMessages(prev =>
+        prev.map(msg =>
+          msg.id === assistantId
+            ? { ...msg, content: "I hit a cosmic disturbance. Let me try again — what were we working on?", isStreaming: false }
+            : msg
+        )
+      );
     } finally {
       setIsLoading(false);
     }
@@ -263,8 +219,12 @@ export function ChatWindow({ onClose, onToolCall }: ChatWindowProps) {
     }
   };
 
+  const handleFileUpload = (files: Attachment[]) => {
+    setAttachments(prev => [...prev, ...files]);
+  };
+
   const removeAttachment = (index: number) => {
-    setAttachments((prev) => prev.filter((_, i) => i !== index));
+    setAttachments(prev => prev.filter((_, i) => i !== index));
   };
 
   const applyCodeToEditor = (code: string) => {
@@ -285,27 +245,21 @@ export function ChatWindow({ onClose, onToolCall }: ChatWindowProps) {
               className="model-btn"
               onClick={() => setShowModelPicker(!showModelPicker)}
             >
-              {model === GROQ_MODELS.DEFAULT ? "Llama 3.1" : "Mixtral"}
+              {model === GROQ_MODELS.DEFAULT ? "Llama 3.3" : "Llama 3.1 Fast"}
             </button>
             {showModelPicker && (
               <div className="model-dropdown glass">
                 <button
                   className={model === GROQ_MODELS.DEFAULT ? "active" : ""}
-                  onClick={() => {
-                    setModel(GROQ_MODELS.DEFAULT);
-                    setShowModelPicker(false);
-                  }}
+                  onClick={() => { setModel(GROQ_MODELS.DEFAULT); setShowModelPicker(false); }}
                 >
-                  Llama 3.1 70B
+                  Llama 3.3 70B (Powerful)
                 </button>
                 <button
                   className={model === GROQ_MODELS.FAST ? "active" : ""}
-                  onClick={() => {
-                    setModel(GROQ_MODELS.FAST);
-                    setShowModelPicker(false);
-                  }}
+                  onClick={() => { setModel(GROQ_MODELS.FAST); setShowModelPicker(false); }}
                 >
-                  Mixtral 8x7B
+                  Llama 3.1 8B (Fast)
                 </button>
               </div>
             )}
@@ -362,10 +316,7 @@ export function ChatWindow({ onClose, onToolCall }: ChatWindowProps) {
                 </div>
               )}
               <div className="message-time">
-                {new Date(msg.timestamp).toLocaleTimeString([], {
-                  hour: "2-digit",
-                  minute: "2-digit",
-                })}
+                {new Date(msg.timestamp).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
               </div>
             </div>
           </motion.div>
@@ -401,7 +352,27 @@ export function ChatWindow({ onClose, onToolCall }: ChatWindowProps) {
           </div>
         )}
         <div className="chat-input-row">
-          {/* FileUploader and VoiceButton removed temporarily to fix build */}
+          <label className="input-icon-btn" title="Attach file">
+            <PaperclipIcon />
+            <input
+              type="file"
+              hidden
+              accept=".txt,.html,.css,.js,.pdf,.docx"
+              onChange={(e) => {
+                const file = e.target.files?.[0];
+                if (file) {
+                  // Simple file reading (you can extend this later)
+                  const reader = new FileReader();
+                  reader.onload = (ev) => {
+                    const content = ev.target?.result as string;
+                    setAttachments(prev => [...prev, { name: file.name, type: file.type, content }]);
+                  };
+                  reader.readAsText(file);
+                }
+                e.target.value = "";
+              }}
+            />
+          </label>
           <textarea
             ref={inputRef}
             value={input}
@@ -423,16 +394,9 @@ export function ChatWindow({ onClose, onToolCall }: ChatWindowProps) {
   );
 }
 
-// Format assistant messages with code blocks and action buttons
-function FormattedMessage({
-  content,
-  onApplyCode,
-}: {
-  content: string;
-  onApplyCode: (code: string) => void;
-}) {
+// Helper component to format assistant messages with code blocks
+function FormattedMessage({ content, onApplyCode }: { content: string; onApplyCode: (code: string) => void }) {
   const parts = content.split(/(\`\`\`[\w]*\n[\s\S]*?\n\`\`\`|\`[^\`]+\`)/g);
-
   return (
     <>
       {parts.map((part, i) => {
@@ -447,18 +411,12 @@ function FormattedMessage({
                   <CodeIcon /> Apply to Editor
                 </button>
               </div>
-              <pre>
-                <code>{code}</code>
-              </pre>
+              <pre><code>{code}</code></pre>
             </div>
           );
         }
         if (part.startsWith("`") && part.endsWith("`")) {
-          return (
-            <code key={i} className="inline-code">
-              {part.slice(1, -1)}
-            </code>
-          );
+          return <code key={i} className="inline-code">{part.slice(1, -1)}</code>;
         }
         return <span key={i}>{part}</span>;
       })}

@@ -32,6 +32,27 @@ function openDB(): Promise<MemoryDB> {
   return dbPromise;
 }
 
+// Dashboard preferences types
+export interface DashboardPrefs {
+  showCoding: boolean;
+  showStatus: boolean;
+  showLesson: boolean;
+  showConstellation: boolean;
+  showVoice: boolean;
+  showFiles: boolean;
+  showProgress: boolean;
+}
+
+export const defaultDashboardPrefs: DashboardPrefs = {
+  showCoding: true,
+  showStatus: true,
+  showLesson: true,
+  showConstellation: true,
+  showVoice: true,
+  showFiles: true,
+  showProgress: true,
+};
+
 export const memory = {
   async getProfile(key: string): Promise<any> {
     const db = await openDB();

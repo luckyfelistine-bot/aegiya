@@ -6,8 +6,6 @@ import { ChatWindow } from "@/components/ChatWindow";
 import CosmosBackground from "@/components/CosmosBackground";
 import ThemePicker from "@/components/ThemePicker";
 import Toast from "@/components/Toast";
-import FileUploader from "@/components/FileUploader";
-import VoiceButton from "@/components/VoiceButton";
 import {
   HomeIcon,
   CodeIcon,

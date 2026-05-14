@@ -6,13 +6,13 @@ const groqClient = new Groq({
 
 export const groq = groqClient;
 
-export const CHAT_MODEL = GROQ_MODELS.DEFAULT;
-
 export const GROQ_MODELS = {
   DEFAULT: "llama-3.1-70b-versatile",
   FAST: "mixtral-8x7b-32768",
   REASONING: "deepseek-r1-distill-llama-70b",
 } as const;
+
+export const CHAT_MODEL = GROQ_MODELS.DEFAULT;
 
 export async function streamChat(messages: any[], model = GROQ_MODELS.DEFAULT) {
   return groq.chat.completions.create({
@@ -34,7 +34,6 @@ export async function quickChat(prompt: string, model = GROQ_MODELS.FAST) {
   return response.choices[0]?.message?.content || "";
 }
 
-// Retry wrapper with exponential backoff
 export async function withRetry<T>(
   fn: () => Promise<T>,
   maxRetries = 3,

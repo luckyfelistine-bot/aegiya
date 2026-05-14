@@ -1,10 +1,12 @@
 import Groq from "groq-sdk";
 
-const groqClient = new Groq({
-  apiKey: process.env.GROQ_API_KEY || "",
-});
+const isBrowser = typeof window !== "undefined";
 
-export const groq = groqClient;
+export const groq = new Groq({
+  apiKey: process.env.GROQ_API_KEY || "",
+  // Required for client-side usage
+  dangerouslyAllowBrowser: isBrowser,
+});
 
 export const GROQ_MODELS = {
   DEFAULT: "llama-3.1-70b-versatile",

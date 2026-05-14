@@ -12,35 +12,14 @@ import {
   GlobeIcon,
   CodeIcon,
   ChatIcon,
-  SparklesIcon,
 } from "@/components/SvgIcons";
 
-/**
-/**
- * Dynamic imports for heavy components to improve initial load
- */
-const Universe3D = dynamic(() => import("@/components/Universe3D"), {
-  ssr: false,
-  loading: () => (
-    <div className="flex items-center justify-center h-full">
-      <div className="text-starlight/50 animate-pulse">Loading Universe...</div>
-    </div>
-  ),
-});
-
+const Universe3D = dynamic(() => import("@/components/Universe3D"), { ssr: false });
 const WorkspaceView = dynamic(() => import("@/components/WorkspaceView"), { ssr: false });
-
 const ChatWindow = dynamic(() => import("@/components/ChatWindow"), { ssr: false });
 
-
-/**
- * Available application views
- */
 type ViewMode = "universe" | "workspace" | "chat";
 
-/**
- * Toast notification state
- */
 interface ToastState {
   show: boolean;
   type: "info" | "success" | "warning" | "error";
@@ -48,23 +27,10 @@ interface ToastState {
   message: string;
 }
 
-/**
- * Dock item configuration
- */
-interface DockItem {
-  id: ViewMode;
-  icon: React.ReactNode;
-  label: string;
-  color: string;
-}
-
-/**
- * Main page component - Orchestrates the entire application
- * Manages view switching, dashboard sidebar, dock, and global UI elements
- */
 export default function HomePage() {
   const [currentView, setCurrentView] = useState<ViewMode>("universe");
   const [isDashboardOpen, setIsDashboardOpen] = useState(false);
+  const [isDockOpen, setIsDockOpen] = useState(false);
   const [toast, setToast] = useState<ToastState>({
     show: false,
     type: "info",
@@ -73,202 +39,90 @@ export default function HomePage() {
   });
   const [isMobile, setIsMobile] = useState(false);
 
-  /**
-   * Dock items configuration
-   */
-  const dockItems: DockItem[] = [
-    {
-      id: "universe",
-      icon: <GlobeIcon size={22} />,
-      label: "Universe",
-      color: "#06b6d4",
-    },
-    {
-      id: "workspace",
-      icon: <CodeIcon size={22} />,
-      label: "Workspace",
-      color: "#8b5cf6",
-    },
-    {
-      id: "chat",
-      icon: <ChatIcon size={22} />,
-      label: "Chat",
-      color: "#ec4899",
-    },
-  ];
-
-  /**
-   * Detect mobile viewport
-   */
   useEffect(() => {
-    const checkMobile = () => {
-      setIsMobile(window.innerWidth < 768);
-    };
+    const checkMobile = () => setIsMobile(window.innerWidth < 768);
     checkMobile();
     window.addEventListener("resize", checkMobile);
     return () => window.removeEventListener("resize", checkMobile);
   }, []);
 
-  /**
-   * Show a toast notification
-   */
   const showToast = useCallback(
     (type: ToastState["type"], title: string, message: string) => {
       setToast({ show: true, type, title, message });
     },
     []
   );
-
-  /**
-   * Hide the toast notification
-   */
-  const hideToast = useCallback(() => {
-    setToast((prev) => ({ ...prev, show: false }));
+  const hideToast = useCallback(() => setToast((p) => ({ ...p, show: false })), []);
+  const navigateTo = useCallback((view: string) => {
+    if (["universe", "workspace", "chat"].includes(view)) {
+      setCurrentView(view as ViewMode);
+      setIsDockOpen(false);
+    }
   }, []);
-
-  /**
-   * Navigate to a specific view
-   */
-  const navigateTo = useCallback(
-    (view: string) => {
-      if (["universe", "workspace", "chat"].includes(view)) {
-        setCurrentView(view as ViewMode);
-        setIsDashboardOpen(false);
-      }
-    },
-    []
-  );
-
-  /**
-   * Toggle dashboard sidebar
-   */
-  const toggleDashboard = useCallback(() => {
-    setIsDashboardOpen((prev) => !prev);
-  }, []);
-
-  /**
-   * Welcome toast on first visit
-   */
-  useEffect(() => {
-    const timer = setTimeout(() => {
-      showToast("info", "Welcome to Byeol", "Your personal universe awaits, Dal.");
-    }, 1500);
-    return () => clearTimeout(timer);
-  }, [showToast]);
+  const toggleDashboard = useCallback(() => setIsDashboardOpen((p) => !p), []);
+  const toggleDock = useCallback(() => setIsDockOpen((p) => !p), []);
 
   return (
     <main className="relative w-screen h-screen overflow-hidden bg-void">
-      {/* Cosmic Background */}
       <CosmosBackground />
 
-      {/* Dashboard Sidebar */}
-      <Dashboard
-        isOpen={isDashboardOpen}
-        onClose={() => setIsDashboardOpen(false)}
-        onNavigate={navigateTo}
-      />
+      <Dashboard isOpen={isDashboardOpen} onClose={() => setIsDashboardOpen(false)} onNavigate={navigateTo} />
 
-      {/* Main Content Area */}
-      <div
-        className={`relative h-full transition-all duration-300 ${
-          isDashboardOpen && !isMobile ? "ml-80" : "ml-0"
-        }`}
-      >
-        {/* View Container */}
-        <div className="h-full pb-20 md:pb-0 md:pl-20">
+      {/* Main Content */}
+      <div className="relative h-full w-full overflow-hidden">
+        <div className="h-full w-full overflow-y-auto p-4 md:p-6 scrollable-content">
           {currentView === "universe" && <Universe3D />}
-          {currentView === "workspace" && (
-            <WorkspaceView
-              showToast={showToast}
-              onClose={() => setCurrentView("universe")}
-            />
-          )}
-          {currentView === "chat" && (
-            <ChatWindow onClose={() => setCurrentView("universe")} />
-          )}
+          {currentView === "workspace" && <WorkspaceView showToast={showToast} onClose={() => setCurrentView("universe")} />}
+          {currentView === "chat" && <ChatWindow onClose={() => setCurrentView("universe")} />}
         </div>
       </div>
 
-      {/* Dock - Desktop (left side) / Mobile (bottom) */}
-      <nav
-        className={`fixed z-50 flex items-center gap-2 ${
-          isMobile
-            ? "bottom-4 left-1/2 -translate-x-1/2 flex-row"
-            : "left-4 top-1/2 -translate-y-1/2 flex-col"
-        }`}
-      >
-        <div className="glass-panel p-2 flex flex-col gap-2">
-          {/* Dashboard Toggle */}
-          <button
-            onClick={toggleDashboard}
-            className={`relative group p-3 rounded-xl transition-all duration-300 ${
-              isDashboardOpen
-                ? "bg-aurora/20 text-aurora shadow-[0_0_20px_rgba(139,92,246,0.3)]"
-                : "text-starlight/60 hover:text-starlight hover:bg-white/10"
-            }`}
-            aria-label="Toggle dashboard"
-          >
-            <HeartIcon size={22} />
-            {isDashboardOpen && (
-              <span className="absolute inset-0 rounded-xl animate-pulse bg-aurora/10" />
-            )}
-          </button>
+      {/* Dock: only love emoji visible; dropdown on click */}
+      <div className="fixed bottom-6 left-6 z-50">
+        <button
+          onClick={toggleDock}
+          className="w-12 h-12 rounded-full bg-gradient-to-br from-accent-primary to-accent-secondary flex items-center justify-center shadow-lg hover:scale-105 transition-transform"
+          aria-label="Open navigation"
+        >
+          <HeartIcon size={24} className="text-white" />
+        </button>
 
-          <div className="w-8 h-px bg-glass-border mx-auto" />
-
-          {/* View Switchers */}
-          {dockItems.map((item) => (
+        {isDockOpen && (
+          <div className="absolute bottom-14 left-0 glass-panel p-2 min-w-[160px] flex flex-col gap-2 animate-fade-in-up">
             <button
-              key={item.id}
-              onClick={() => setCurrentView(item.id)}
-              className={`relative group p-3 rounded-xl transition-all duration-300 ${
-                currentView === item.id
-                  ? "text-starlight shadow-[0_0_16px_rgba(0,0,0,0.3)]"
-                  : "text-starlight/50 hover:text-starlight hover:bg-white/10"
+              onClick={() => navigateTo("universe")}
+              className={`flex items-center gap-3 px-4 py-2 rounded-lg transition-all ${
+                currentView === "universe" ? "bg-accent/20 text-accent" : "hover:bg-white/10"
               }`}
-              style={
-                currentView === item.id
-                  ? {
-                      backgroundColor: `${item.color}20`,
-                      boxShadow: `0 0 20px ${item.color}30`,
-                    }
-                  : {}
-              }
-              aria-label={`Switch to ${item.label}`}
             >
-              {item.icon}
-
-              {/* Tooltip */}
-              <span
-                className={`absolute ${
-                  isMobile ? "bottom-full left-1/2 -translate-x-1/2 mb-2" : "left-full ml-3 top-1/2 -translate-y-1/2"
-                } px-2 py-1 rounded-md bg-eclipse text-xs text-starlight whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-50`}
-              >
-                {item.label}
-              </span>
+              <GlobeIcon size={18} />
+              <span className="text-sm">Universe</span>
             </button>
-          ))}
-
-          <div className="w-8 h-px bg-glass-border mx-auto" />
-
-          {/* Brand indicator */}
-          <div className="p-3 flex items-center justify-center">
-            <SparklesIcon size={18} className="text-aurora/50" />
+            <button
+              onClick={() => navigateTo("workspace")}
+              className={`flex items-center gap-3 px-4 py-2 rounded-lg transition-all ${
+                currentView === "workspace" ? "bg-accent/20 text-accent" : "hover:bg-white/10"
+              }`}
+            >
+              <CodeIcon size={18} />
+              <span className="text-sm">Workspace</span>
+            </button>
+            <button
+              onClick={() => navigateTo("chat")}
+              className={`flex items-center gap-3 px-4 py-2 rounded-lg transition-all ${
+                currentView === "chat" ? "bg-accent/20 text-accent" : "hover:bg-white/10"
+              }`}
+            >
+              <ChatIcon size={18} />
+              <span className="text-sm">Chat</span>
+            </button>
+            <div className="border-t border-glass-border my-1" />
+            <ThemePicker />
           </div>
-        </div>
-      </nav>
+        )}
+      </div>
 
-      {/* Theme Picker */}
-      <ThemePicker />
-
-      {/* Toast Notifications */}
-      <Toast
-        show={toast.show}
-        type={toast.type}
-        title={toast.title}
-        message={toast.message}
-        onClose={hideToast}
-      />
+      <Toast show={toast.show} type={toast.type} title={toast.title} message={toast.message} onClose={hideToast} />
     </main>
   );
 }

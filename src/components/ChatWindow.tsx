@@ -391,3 +391,6 @@ function FormattedMessage({ content, onApplyCode }: { content: string; onApplyCo
     </>
   );
 }
+
+export default ChatWindow;
+

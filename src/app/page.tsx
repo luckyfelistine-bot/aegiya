@@ -31,9 +31,10 @@ const WorkspaceView = dynamic(() => import("@/components/WorkspaceView"), {
   ssr: false,
 });
 
-const ChatWindow = dynamic(() => import("@/components/ChatWindow"), {
-  ssr: false,
-});
+const ChatWindow = dynamic(
+  () => import("@/components/ChatWindow").then((mod) => mod.default),
+  { ssr: false }
+);
 
 /**
  * Available application views

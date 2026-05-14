@@ -1682,3 +1682,85 @@ body {
     width: 280px;
   }
 }
+
+/* ===== DASHBOARD BENTO GRID ===== */
+.bento-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 16px;
+  padding: 16px;
+  width: 100%;
+  height: 100%;
+  overflow-y: auto;
+}
+
+.bento-tile {
+  background: var(--glass-bg);
+  backdrop-filter: blur(12px);
+  border: 1px solid var(--glass-border);
+  border-radius: var(--radius-lg);
+  padding: 20px;
+  transition: var(--transition-base);
+  cursor: pointer;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.bento-tile:hover {
+  transform: translateY(-4px);
+  border-color: var(--accent-cyan);
+  box-shadow: var(--shadow-glow);
+}
+
+.tile-icon {
+  font-size: 28px;
+  color: var(--accent-cyan);
+}
+
+.tile-title {
+  font-weight: 600;
+  font-size: 1.1rem;
+  color: var(--text-primary);
+}
+
+.tile-desc {
+  font-size: 0.85rem;
+  color: var(--text-secondary);
+  line-height: 1.4;
+}
+
+.tile-meta {
+  font-size: 0.75rem;
+  color: var(--text-muted);
+  margin-top: auto;
+}
+
+/* tile sizes */
+.bento-hero {
+  grid-column: span 2;
+}
+.bento-wide {
+  grid-column: span 2;
+}
+.bento-tall {
+  grid-row: span 2;
+}
+.bento-medium {
+  grid-column: span 1;
+}
+.bento-small {
+  grid-column: span 1;
+}
+
+@media (max-width: 768px) {
+  .bento-grid {
+    grid-template-columns: 1fr;
+  }
+  .bento-hero, .bento-wide {
+    grid-column: span 1;
+  }
+  .bento-tall {
+    grid-row: span 1;
+  }
+}

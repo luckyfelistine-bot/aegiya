@@ -76,6 +76,18 @@ export const DoveIcon = ({ size = 20, ...props }: IconProps) => (
   </svg>
 );
 
+export const CarIcon = ({ size = 20, ...props }: IconProps) => (
+  <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...props}>
+    <path d="M7 17h.01M17 17h.01" />
+    <path d="M3 12h18" />
+    <path d="M6 8h12" />
+    <path d="M8 4h8" />
+    <path d="M12 4v8" />
+    <circle cx="7" cy="17" r="2" />
+    <circle cx="17" cy="17" r="2" />
+  </svg>
+);
+
 export const SparklesIcon = ({ size = 20, ...props }: IconProps) => (
   <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" {...props}>
     <path d="M12 3L14 8L19 10L14 12L12 17L10 12L5 10L10 8L12 3Z" />

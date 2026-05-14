@@ -86,11 +86,16 @@ export default function HomePage() {
 
       {/* Main Content – scrollable */}
         <div
-          className={`h-full w-full ${
+          style={
             currentView === "universe"
-              ? "overflow-hidden p-0"
-              : "overflow-y-auto p-4 md:p-6 scrollable-content"
-          }`}
+              ? { width: "100%", height: "100%", overflow: "hidden", padding: 0, margin: 0 }
+              : {}
+          }
+          className={
+            currentView === "universe"
+              ? ""
+              : "h-full w-full overflow-y-auto p-4 md:p-6 scrollable-content"
+          }
         >
           {currentView === "universe" && <Universe3D />}
           {currentView === "workspace" && <WorkspaceView showToast={showToast} onClose={() => setCurrentView("universe")} />}

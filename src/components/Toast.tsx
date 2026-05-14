@@ -46,7 +46,7 @@ export default function Toast({ show, type, title, message, onClose }: ToastProp
     <div className="toast-container">
       <div className={`toast ${hiding ? "hiding" : ""}`}>
         <div className={`toast-icon ${type}`}>
-          <Icon />
+          <Icon size={20} />
         </div>
         <div className="toast-content">
           <div className="toast-title">{title}</div>
@@ -60,7 +60,7 @@ export default function Toast({ show, type, title, message, onClose }: ToastProp
           }}
           aria-label="Close notification"
         >
-          <CloseIcon />
+          <CloseIcon size={16} />
         </button>
         <div className="toast-progress" />
       </div>

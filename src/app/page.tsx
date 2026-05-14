@@ -27,9 +27,7 @@ const Universe3D = dynamic(() => import("@/components/Universe3D"), {
   ),
 });
 
-const WorkspaceView = dynamic(() => import("@/components/WorkspaceView"), {
-  ssr: false,
-});
+const ChatWindow = dynamic(() => import("@/components/ChatWindow"), { ssr: false });
 
 const ChatWindow = dynamic(
   () => import("@/components/ChatWindow").then((mod) => mod.default),

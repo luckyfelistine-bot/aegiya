@@ -85,13 +85,17 @@ export default function HomePage() {
       <Dashboard isOpen={isDashboardOpen} onClose={() => setIsDashboardOpen(false)} onNavigate={navigateTo} />
 
       {/* Main Content – scrollable */}
-      <div className="relative h-full w-full overflow-hidden">
-        <div className="h-full w-full overflow-y-auto p-4 md:p-6 scrollable-content">
+        <div
+          className={`h-full w-full ${
+            currentView === "universe"
+              ? "overflow-hidden p-0"
+              : "overflow-y-auto p-4 md:p-6 scrollable-content"
+          }`}
+        >
           {currentView === "universe" && <Universe3D />}
           {currentView === "workspace" && <WorkspaceView showToast={showToast} onClose={() => setCurrentView("universe")} />}
           {currentView === "chat" && <ChatWindow onClose={() => setCurrentView("universe")} />}
         </div>
-      </div>
 
       {/* Dock – heart button + dropdown */}
       <div className="fixed bottom-6 left-6 z-50">

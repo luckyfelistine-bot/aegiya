@@ -16,6 +16,7 @@ import {
 } from "@/components/SvgIcons";
 
 /**
+/**
  * Dynamic imports for heavy components to improve initial load
  */
 const Universe3D = dynamic(() => import("@/components/Universe3D"), {
@@ -27,12 +28,10 @@ const Universe3D = dynamic(() => import("@/components/Universe3D"), {
   ),
 });
 
+const WorkspaceView = dynamic(() => import("@/components/WorkspaceView"), { ssr: false });
+
 const ChatWindow = dynamic(() => import("@/components/ChatWindow"), { ssr: false });
 
-const ChatWindow = dynamic(
-  () => import("@/components/ChatWindow").then((mod) => mod.default),
-  { ssr: false }
-);
 
 /**
  * Available application views

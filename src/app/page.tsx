@@ -31,6 +31,7 @@ export default function HomePage() {
   const [currentView, setCurrentView] = useState<ViewMode>("universe");
   const [isDashboardOpen, setIsDashboardOpen] = useState(false);
   const [isDockOpen, setIsDockOpen] = useState(false);
+  const [theme, setTheme] = useState("cosmic");
   const [toast, setToast] = useState<ToastState>({
     show: false,
     type: "info",
@@ -44,6 +45,16 @@ export default function HomePage() {
     checkMobile();
     window.addEventListener("resize", checkMobile);
     return () => window.removeEventListener("resize", checkMobile);
+  }, []);
+
+  useEffect(() => {
+    const saved = localStorage.getItem("byeol-theme");
+    if (saved) {
+      setTheme(saved);
+      document.documentElement.setAttribute("data-theme", saved);
+    } else {
+      document.documentElement.setAttribute("data-theme", "cosmic");
+    }
   }, []);
 
   const showToast = useCallback(
@@ -61,6 +72,11 @@ export default function HomePage() {
   }, []);
   const toggleDashboard = useCallback(() => setIsDashboardOpen((p) => !p), []);
   const toggleDock = useCallback(() => setIsDockOpen((p) => !p), []);
+  const handleThemeChange = useCallback((newTheme: string) => {
+    setTheme(newTheme);
+    document.documentElement.setAttribute("data-theme", newTheme);
+    localStorage.setItem("byeol-theme", newTheme);
+  }, []);
 
   return (
     <main className="relative w-screen h-screen overflow-hidden bg-void">
@@ -81,18 +97,28 @@ export default function HomePage() {
       <div className="fixed bottom-6 left-6 z-50">
         <button
           onClick={toggleDock}
-          className="w-12 h-12 rounded-full bg-gradient-to-br from-accent-primary to-accent-secondary flex items-center justify-center shadow-lg hover:scale-105 transition-transform"
+          className="w-12 h-12 rounded-full bg-gradient-to-br from-[#8b5cf6] to-[#06b6d4] flex items-center justify-center shadow-lg hover:scale-105 transition-transform"
           aria-label="Open navigation"
         >
           <HeartIcon size={24} className="text-white" />
         </button>
 
         {isDockOpen && (
-          <div className="absolute bottom-14 left-0 glass-panel p-2 min-w-[180px] flex flex-col gap-2 animate-fade-in-up">
+          <div
+            className="absolute bottom-14 left-0 p-2 min-w-[180px] flex flex-col gap-2"
+            style={{
+              background: "rgba(10, 10, 26, 0.9)",
+              backdropFilter: "blur(16px)",
+              border: "1px solid rgba(255, 255, 255, 0.1)",
+              borderRadius: "20px",
+              boxShadow: "0 8px 24px rgba(0, 0, 0, 0.3)",
+              animation: "fadeInUp 0.2s ease-out",
+            }}
+          >
             <button
               onClick={() => navigateTo("universe")}
               className={`flex items-center gap-3 px-4 py-2 rounded-lg transition-all ${
-                currentView === "universe" ? "bg-accent/20 text-accent" : "hover:bg-white/10"
+                currentView === "universe" ? "bg-purple-500/20 text-purple-400" : "hover:bg-white/10"
               }`}
             >
               <GlobeIcon size={18} />
@@ -101,7 +127,7 @@ export default function HomePage() {
             <button
               onClick={() => navigateTo("workspace")}
               className={`flex items-center gap-3 px-4 py-2 rounded-lg transition-all ${
-                currentView === "workspace" ? "bg-accent/20 text-accent" : "hover:bg-white/10"
+                currentView === "workspace" ? "bg-purple-500/20 text-purple-400" : "hover:bg-white/10"
               }`}
             >
               <CodeIcon size={18} />
@@ -110,15 +136,14 @@ export default function HomePage() {
             <button
               onClick={() => navigateTo("chat")}
               className={`flex items-center gap-3 px-4 py-2 rounded-lg transition-all ${
-                currentView === "chat" ? "bg-accent/20 text-accent" : "hover:bg-white/10"
+                currentView === "chat" ? "bg-purple-500/20 text-purple-400" : "hover:bg-white/10"
               }`}
             >
               <ChatIcon size={18} />
               <span className="text-sm">Chat</span>
             </button>
-            <div className="border-t border-glass-border my-1" />
-            {/* ThemePicker – its button will appear inside the dropdown */}
-            <ThemePicker value={currentView === "universe" ? "cosmic" : "andromeda"} onChange={(theme) => console.log("theme changed", theme)} />
+            <div className="border-t border-white/10 my-1" />
+            <ThemePicker value={theme} onChange={handleThemeChange} />
           </div>
         )}
       </div>

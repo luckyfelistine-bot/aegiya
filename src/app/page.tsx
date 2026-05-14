@@ -177,8 +177,15 @@ export default function HomePage() {
         {/* View Container */}
         <div className="h-full pb-20 md:pb-0 md:pl-20">
           {currentView === "universe" && <Universe3D />}
-          {currentView === "chat" && <ChatWindow onClose={() => setCurrentView("universe")} />}
-          {currentView === "chat" && <ChatWindow onClose={() => setCurrentView("universe")} onToolCall={handleToolCall} />}
+          {currentView === "workspace" && (
+            <WorkspaceView
+              showToast={showToast}
+              onClose={() => setCurrentView("universe")}
+            />
+          )}
+          {currentView === "chat" && (
+            <ChatWindow onClose={() => setCurrentView("universe")} />
+          )}
         </div>
       </div>
 

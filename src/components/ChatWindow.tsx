@@ -1,444 +1,454 @@
 "use client";
 
-import { useState, useRef, useEffect, useCallback } from "react";
+import React, { useState, useRef, useEffect, useCallback } from "react";
+import { motion, AnimatePresence } from "framer-motion";
+import { groq, GROQ_MODELS } from "@/lib/groq";
 import { memory } from "@/lib/memory";
-import { speak, startSpeechRecognition } from "@/utils/speech";
+import { SYSTEM_PROMPT } from "@/lib/systemPrompt";
+import { FileUploader } from "@/components/FileUploader";
+import { VoiceButton } from "@/components/VoiceButton";
 import {
   SendIcon,
-  MicIcon,
+  XIcon,
   PaperclipIcon,
-  StarIcon,
+  SparklesIcon,
+  CodeIcon,
+  FileIcon,
+  CheckIcon,
 } from "@/components/SvgIcons";
 
 interface Message {
   id: string;
-  role: "user" | "assistant";
+  role: "user" | "assistant" | "system";
   content: string;
   timestamp: number;
-  isStreaming?: boolean;
+  attachments?: Attachment[];
+  toolCalls?: ToolCall[];
+}
+
+interface Attachment {
+  name: string;
+  type: string;
+  content: string;
+}
+
+interface ToolCall {
+  id: string;
+  name: string;
+  params: any;
+  status: "pending" | "running" | "completed" | "error";
+  result?: any;
 }
 
 interface ChatWindowProps {
-  isOpen: boolean;
   onClose: () => void;
+  onToolCall?: (tool: string, params: any) => Promise<any>;
 }
 
-export default function ChatWindow({ isOpen, onClose }: ChatWindowProps) {
+export function ChatWindow({ onClose, onToolCall }: ChatWindowProps) {
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState("");
   const [isLoading, setIsLoading] = useState(false);
-  const [isThinking, setIsThinking] = useState(false);
-  const [isRecording, setIsRecording] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const [model, setModel] = useState(GROQ_MODELS.DEFAULT);
+  const [showModelPicker, setShowModelPicker] = useState(false);
+  const [attachments, setAttachments] = useState<Attachment[]>([]);
   const messagesEndRef = useRef<HTMLDivElement>(null);
-  const inputRef = useRef<HTMLInputElement>(null);
-  const abortControllerRef = useRef<AbortController | null>(null);
+  const inputRef = useRef<HTMLTextAreaElement>(null);
 
-  // Load messages from IndexedDB on mount
+  // Load messages
   useEffect(() => {
-    const loadMessages = async () => {
+    const load = async () => {
       try {
         const saved = await memory.getMessages(50);
-        if (saved && saved.length > 0) {
-          setMessages(
-            saved.map((m: any) => ({
-              id: m.id?.toString() || crypto.randomUUID(),
-              role: m.role,
-              content: m.content,
-              timestamp: m.timestamp || Date.now(),
-            }))
-          );
+        if (saved.length > 0) {
+          setMessages(saved);
         } else {
+          // Welcome message
           setMessages([
             {
               id: "welcome",
               role: "assistant",
-              content:
-                "Hi Dal! I'm Byeol, your personal star. ✨ How can I help you with coding or studies today?",
+              content: "Hey Dal! I'm Byeol, your companion in this universe. I can code with you, plan our future, or just chat. What would you like to do?",
               timestamp: Date.now(),
             },
           ]);
         }
       } catch (e) {
         console.error("Failed to load messages:", e);
-        setMessages([
-          {
-            id: "welcome",
-            role: "assistant",
-            content:
-              "Hi Dal! I'm Byeol, your personal star. ✨ How can I help you with coding or studies today?",
-            timestamp: Date.now(),
-          },
-        ]);
       }
     };
-    loadMessages();
+    load();
   }, []);
 
-  // Auto-scroll to bottom when messages change
+  // Auto-scroll
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, [messages, isThinking]);
+  }, [messages]);
 
-  // Focus input when chat opens
+  // Auto-resize textarea
   useEffect(() => {
-    if (isOpen) {
-      setTimeout(() => inputRef.current?.focus(), 100);
+    const el = inputRef.current;
+    if (el) {
+      el.style.height = "auto";
+      el.style.height = el.scrollHeight + "px";
     }
-  }, [isOpen]);
+  }, [input]);
 
-  const generateId = () =>
-    typeof crypto !== "undefined"
-      ? crypto.randomUUID()
-      : `${Date.now()}-${Math.random()}`;
+  const handleSend = async () => {
+    if (!input.trim() && attachments.length === 0) return;
+    if (isLoading) return;
 
-  const formatTime = (timestamp: number) => {
+    const userMsg: Message = {
+      id: `user-${Date.now()}`,
+      role: "user",
+      content: input,
+      timestamp: Date.now(),
+      attachments: attachments.length > 0 ? attachments : undefined,
+    };
+
+    const newMessages = [...messages, userMsg];
+    setMessages(newMessages);
+    setInput("");
+    setAttachments([]);
+    setIsLoading(true);
+
     try {
-      return new Date(timestamp).toLocaleTimeString([], {
-        hour: "2-digit",
-        minute: "2-digit",
+      // Build context with system prompt
+      const contextMessages = [
+        { role: "system", content: SYSTEM_PROMPT },
+        ...newMessages.slice(-20).map((m) => ({
+          role: m.role,
+          content: m.content + (m.attachments ? "\n\n[Attachments: " + m.attachments.map(a => a.name).join(", ") + "]" : ""),
+        })),
+      ];
+
+      // Get current editor code if available
+      let editorContext = "";
+      try {
+        const code = await new Promise<string>((resolve) => {
+          const handler = (e: any) => {
+            window.removeEventListener("byeol:editorCode", handler);
+            resolve(e.detail.code);
+          };
+          window.addEventListener("byeol:editorCode", handler);
+          window.dispatchEvent(new CustomEvent("byeol:getCode"));
+          setTimeout(() => resolve(""), 100);
+        });
+        if (code) editorContext = `\n\nCurrent editor content:\n\`\`\`${code.substring(0, 2000)}\`\`\``;
+      } catch (e) {
+        // No editor open
+      }
+
+      const response = await groq.chat.completions.create({
+        model,
+        messages: [
+          ...contextMessages,
+          ...(editorContext ? [{ role: "system", content: editorContext }] : []),
+        ],
+        temperature: 0.7,
+        max_tokens: 4096,
+        stream: true,
       });
-    } catch {
-      return "";
+
+      let assistantContent = "";
+      let toolCalls: ToolCall[] = [];
+
+      for await (const chunk of response) {
+        const delta = chunk.choices[0]?.delta;
+        if (delta?.content) {
+          assistantContent += delta.content;
+          setMessages((prev) => {
+            const last = prev[prev.length - 1];
+            if (last?.role === "assistant" && last.id === "streaming") {
+              return [
+                ...prev.slice(0, -1),
+                { ...last, content: assistantContent },
+              ];
+            }
+            return [
+              ...prev,
+              {
+                id: "streaming",
+                role: "assistant",
+                content: assistantContent,
+                timestamp: Date.now(),
+                toolCalls,
+              },
+            ];
+          });
+        }
+
+        // Check for tool calls in content
+        const toolRegex = /\[TOOL:(\w+)\](.*?)(?=\[TOOL:|\[\/TOOL\]|$)/gs;
+        const matches = [...assistantContent.matchAll(toolRegex)];
+        for (const match of matches) {
+          const toolName = match[1];
+          const toolParams = match[2].trim();
+          if (!toolCalls.find((t) => t.name === toolName && t.status === "pending")) {
+            toolCalls.push({
+              id: `tool-${Date.now()}-${toolName}`,
+              name: toolName,
+              params: toolParams,
+              status: "pending",
+            });
+          }
+        }
+      }
+
+      // Execute tool calls
+      for (const toolCall of toolCalls) {
+        if (onToolCall && toolCall.status === "pending") {
+          toolCall.status = "running";
+          try {
+            const result = await onToolCall(toolCall.name, toolCall.params);
+            toolCall.status = "completed";
+            toolCall.result = result;
+          } catch (e) {
+            toolCall.status = "error";
+            toolCall.result = { error: String(e) };
+          }
+        }
+      }
+
+      // Finalize message
+      const finalMsg: Message = {
+        id: `assistant-${Date.now()}`,
+        role: "assistant",
+        content: assistantContent,
+        timestamp: Date.now(),
+        toolCalls: toolCalls.length > 0 ? toolCalls : undefined,
+      };
+
+      setMessages((prev) => {
+        const filtered = prev.filter((m) => m.id !== "streaming");
+        return [...filtered, finalMsg];
+      });
+
+      // Save to memory
+      await memory.saveMessage(userMsg);
+      await memory.saveMessage(finalMsg);
+    } catch (error) {
+      console.error("Chat error:", error);
+      setMessages((prev) => [
+        ...prev.filter((m) => m.id !== "streaming"),
+        {
+          id: `error-${Date.now()}`,
+          role: "assistant",
+          content: "I hit a cosmic disturbance. Let me try again — what were we working on?",
+          timestamp: Date.now(),
+        },
+      ]);
+    } finally {
+      setIsLoading(false);
     }
   };
 
-  const sendMessage = useCallback(
-    async (text: string) => {
-      if (!text.trim() || isLoading) return;
+  const handleKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === "Enter" && !e.shiftKey) {
+      e.preventDefault();
+      handleSend();
+    }
+  };
 
-      const userMsg: Message = {
-        id: generateId(),
-        role: "user",
-        content: text.trim(),
-        timestamp: Date.now(),
-      };
+  const handleFileUpload = (files: Attachment[]) => {
+    setAttachments((prev) => [...prev, ...files]);
+  };
 
-      // Add user message to UI immediately
-      setMessages((prev) => [...prev, userMsg]);
-      setInput("");
-      setIsLoading(true);
-      setIsThinking(true);
-      setError(null);
+  const removeAttachment = (index: number) => {
+    setAttachments((prev) => prev.filter((_, i) => i !== index));
+  };
 
-      // Save user message to IndexedDB
-      try {
-        await memory.saveMessage({
-          role: "user",
-          content: userMsg.content,
-          timestamp: userMsg.timestamp,
-        });
-      } catch (e) {
-        console.error("Failed to save user message:", e);
-      }
-
-      // Create placeholder for assistant response
-      const assistantId = generateId();
-      setMessages((prev) => [
-        ...prev,
-        {
-          id: assistantId,
-          role: "assistant",
-          content: "",
-          timestamp: Date.now(),
-          isStreaming: true,
-        },
-      ]);
-
-      // Build conversation history for API
-      const apiMessages = messages
-        .slice(-10)
-        .map((m) => ({ role: m.role, content: m.content }));
-
-      apiMessages.push({ role: "user" as const, content: userMsg.content });
-
-      // Abort previous request if exists
-      if (abortControllerRef.current) {
-        abortControllerRef.current.abort();
-      }
-      abortControllerRef.current = new AbortController();
-
-      try {
-        const response = await fetch("/api/chat", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ messages: apiMessages }),
-          signal: abortControllerRef.current.signal,
-        });
-
-        if (!response.ok) {
-          const errorData = await response.json().catch(() => ({}));
-          throw new Error(
-            errorData.error || `HTTP error! status: ${response.status}`
-          );
-        }
-
-        const reader = response.body?.getReader();
-        if (!reader) {
-          throw new Error("No response body available");
-        }
-
-        const decoder = new TextDecoder();
-        let buffer = "";
-        let fullContent = "";
-
-        setIsThinking(false);
-
-        while (true) {
-          const { done, value } = await reader.read();
-          if (done) break;
-
-          buffer += decoder.decode(value, { stream: true });
-          const lines = buffer.split("\n");
-          buffer = lines.pop() || "";
-
-          for (const line of lines) {
-            const trimmed = line.trim();
-            if (!trimmed || !trimmed.startsWith("data: ")) continue;
-
-            const data = trimmed.slice(6);
-            if (data === "[DONE]") continue;
-
-            try {
-              const parsed = JSON.parse(data);
-              const content = parsed.content || "";
-              if (content) {
-                fullContent += content;
-                setMessages((prev) =>
-                  prev.map((m) =>
-                    m.id === assistantId
-                      ? { ...m, content: fullContent, isStreaming: true }
-                      : m
-                  )
-                );
-              }
-            } catch (e) {
-              // Ignore malformed JSON lines
-            }
-          }
-        }
-
-        // Mark streaming as complete
-        setMessages((prev) =>
-          prev.map((m) =>
-            m.id === assistantId ? { ...m, isStreaming: false } : m
-          )
-        );
-
-        // Save assistant message to IndexedDB
-        if (fullContent) {
-          await memory.saveMessage({
-            role: "assistant",
-            content: fullContent,
-            timestamp: Date.now(),
-          });
-
-          // Speak the response
-          speak(fullContent);
-        }
-      } catch (err: any) {
-        if (err.name === "AbortError") {
-          // User cancelled, remove the empty assistant message
-          setMessages((prev) => prev.filter((m) => m.id !== assistantId));
-          return;
-        }
-
-        console.error("Chat error:", err);
-        setError(err.message || "Something went wrong. Please try again.");
-
-        // Replace empty assistant message with error
-        setMessages((prev) =>
-          prev
-            .filter((m) => m.id !== assistantId)
-            .concat({
-              id: generateId(),
-              role: "assistant",
-              content: `I'm sorry, Dal. I encountered an error: ${err.message}. Please try again in a moment. 💫`,
-              timestamp: Date.now(),
-            })
-        );
-      } finally {
-        setIsLoading(false);
-        setIsThinking(false);
-        abortControllerRef.current = null;
-      }
-    },
-    [messages, isLoading]
-  );
-
-  const handleVoiceInput = () => {
-    if (isRecording) return;
-    setIsRecording(true);
-    startSpeechRecognition(
-      async (text: string) => {
-        if (text) {
-          setInput(text);
-          await sendMessage(text);
-        }
-        setIsRecording(false);
-      },
-      () => {
-        setIsRecording(false);
-      }
+  const applyCodeToEditor = (code: string) => {
+    window.dispatchEvent(
+      new CustomEvent("byeol:setCode", { detail: { code } })
     );
   };
 
-  const handleFileUpload = async (
-    e: React.ChangeEvent<HTMLInputElement>
-  ) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-
-    setIsLoading(true);
-    setIsThinking(true);
-
-    try {
-      const formData = new FormData();
-      formData.append("file", file);
-
-      const response = await fetch("/api/process-file", {
-        method: "POST",
-        body: formData,
-      });
-
-      if (!response.ok) {
-        throw new Error("Failed to process file");
-      }
-
-      const data = await response.json();
-
-      const fileMsg = `I uploaded a file: ${file.name}\n\nContent summary:\n${data.summary || data.content || "File processed successfully"}`;
-      await sendMessage(fileMsg);
-    } catch (err: any) {
-      setError(err.message || "Failed to upload file");
-    } finally {
-      setIsLoading(false);
-      setIsThinking(false);
-      // Reset file input
-      e.target.value = "";
-    }
-  };
-
-  if (!isOpen) return null;
-
   return (
-    <div className={`chat-panel glass ${isOpen ? "open" : ""}`} id="chatPanel">
-      {/* Chat Header */}
+    <div className="chat-window">
+      {/* Header */}
       <div className="chat-header">
-        <div className="chat-avatar">
-          <StarIcon />
+        <div className="chat-title">
+          <SparklesIcon />
+          <span>Byeol</span>
         </div>
-        <div className="chat-name">Byeol</div>
-        <div className="chat-status">
-          <span className="status-dot"></span>
-          <span>Online — Dal&apos;s personal star</span>
+        <div className="chat-actions">
+          <div className="model-picker">
+            <button
+              className="model-btn"
+              onClick={() => setShowModelPicker(!showModelPicker)}
+            >
+              {model === GROQ_MODELS.DEFAULT ? "Llama 3.1" : "Mixtral"}
+            </button>
+            {showModelPicker && (
+              <div className="model-dropdown glass">
+                <button
+                  className={model === GROQ_MODELS.DEFAULT ? "active" : ""}
+                  onClick={() => { setModel(GROQ_MODELS.DEFAULT); setShowModelPicker(false); }}
+                >
+                  Llama 3.1 70B
+                </button>
+                <button
+                  className={model === GROQ_MODELS.FAST ? "active" : ""}
+                  onClick={() => { setModel(GROQ_MODELS.FAST); setShowModelPicker(false); }}
+                >
+                  Mixtral 8x7B
+                </button>
+              </div>
+            )}
+          </div>
+          <button className="icon-btn" onClick={onClose} aria-label="Close chat">
+            <XIcon />
+          </button>
         </div>
       </div>
 
       {/* Messages */}
-      <div className="chat-messages" id="chatMessages">
+      <div className="chat-messages">
         {messages.map((msg) => (
-          <div
+          <motion.div
             key={msg.id}
-            className={`msg ${msg.role} ${msg.isStreaming ? "streaming" : ""}`}
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            className={`message ${msg.role}`}
           >
-            <div className="msg-content">
-              {msg.role === "assistant" && (
-                <div className="msg-avatar-small">
-                  <StarIcon />
+            <div className="message-avatar">
+              {msg.role === "assistant" ? "✨" : "👤"}
+            </div>
+            <div className="message-content">
+              <div className="message-text">
+                {msg.role === "assistant" ? (
+                  <FormattedMessage content={msg.content} onApplyCode={applyCodeToEditor} />
+                ) : (
+                  msg.content
+                )}
+              </div>
+              {msg.attachments && (
+                <div className="message-attachments">
+                  {msg.attachments.map((att, i) => (
+                    <div key={i} className="attachment-badge">
+                      <FileIcon />
+                      <span>{att.name}</span>
+                    </div>
+                  ))}
                 </div>
               )}
-              <div className="msg-body">
-                <div className="msg-text">{msg.content}</div>
-                <div className="msg-time">{formatTime(msg.timestamp)}</div>
+              {msg.toolCalls && (
+                <div className="tool-calls">
+                  {msg.toolCalls.map((tc) => (
+                    <div key={tc.id} className={`tool-call ${tc.status}`}>
+                      <CodeIcon />
+                      <span>{tc.name}</span>
+                      {tc.status === "completed" && <CheckIcon />}
+                      {tc.status === "running" && <div className="tool-spinner" />}
+                    </div>
+                  ))}
+                </div>
+              )}
+              <div className="message-time">
+                {new Date(msg.timestamp).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
               </div>
             </div>
-          </div>
+          </motion.div>
         ))}
-
-        {/* Thinking Indicator */}
-        {isThinking && (
-          <div className="msg assistant thinking">
-            <div className="msg-content">
-              <div className="msg-avatar-small">
-                <StarIcon />
-              </div>
-              <div className="msg-body">
-                <div className="msg-text">
-                  <div className="thinking-indicator">
-                    <span></span>
-                    <span></span>
-                    <span></span>
-                  </div>
-                  <div className="thinking-text">Byeol is thinking...</div>
-                </div>
+        {isLoading && (
+          <div className="message assistant">
+            <div className="message-avatar">✨</div>
+            <div className="message-content">
+              <div className="thinking-indicator">
+                <div className="thinking-dot" />
+                <div className="thinking-dot" />
+                <div className="thinking-dot" />
               </div>
             </div>
           </div>
         )}
-
         <div ref={messagesEndRef} />
       </div>
 
-      {/* Error Toast */}
-      {error && (
-        <div className="chat-error" onClick={() => setError(null)}>
-          <span>{error}</span>
-          <button aria-label="Dismiss error">×</button>
-        </div>
-      )}
-
-      {/* Input Area */}
+      {/* Input */}
       <div className="chat-input-area">
-        <div className="input-glass">
-          <label className="input-btn" title="Attach file">
-            <PaperclipIcon />
-            <input
-              type="file"
-              hidden
-              accept=".txt,.html,.css,.js,.pdf,.docx"
-              onChange={handleFileUpload}
-              disabled={isLoading}
-            />
-          </label>
-
-          <button
-            className={`input-btn mic ${isRecording ? "recording" : ""}`}
-            title={isRecording ? "Recording..." : "Hold to talk"}
-            onClick={handleVoiceInput}
-            disabled={isLoading}
-            aria-label={isRecording ? "Recording" : "Voice input"}
-          >
-            <MicIcon />
-          </button>
-
-          <input
+        {attachments.length > 0 && (
+          <div className="attachment-list">
+            {attachments.map((att, i) => (
+              <div key={i} className="attachment-chip">
+                <FileIcon />
+                <span>{att.name}</span>
+                <button onClick={() => removeAttachment(i)}>
+                  <XIcon />
+                </button>
+              </div>
+            ))}
+          </div>
+        )}
+        <div className="chat-input-row">
+          <FileUploader onUpload={handleFileUpload} />
+          <VoiceButton
+            onTranscript={(text) => setInput((prev) => prev + text)}
+            onListening={(listening) => {
+              if (listening) setInput("Listening...");
+            }}
+          />
+          <textarea
             ref={inputRef}
-            type="text"
             value={input}
             onChange={(e) => setInput(e.target.value)}
-            onKeyDown={(e) => {
-              if (e.key === "Enter" && !e.shiftKey) {
-                e.preventDefault();
-                sendMessage(input);
-              }
-            }}
-            placeholder="Ask Byeol anything, Dal..."
-            disabled={isLoading}
-            aria-label="Chat message"
+            onKeyDown={handleKeyDown}
+            placeholder="Ask Byeol anything..."
+            rows={1}
           />
-
           <button
-            className="input-btn send"
-            title="Send"
-            onClick={() => sendMessage(input)}
-            disabled={isLoading || !input.trim()}
-            aria-label="Send message"
+            className="send-btn"
+            onClick={handleSend}
+            disabled={isLoading || (!input.trim() && attachments.length === 0)}
           >
             <SendIcon />
           </button>
         </div>
       </div>
     </div>
+  );
+}
+
+// Format assistant messages with code blocks and action buttons
+function FormattedMessage({
+  content,
+  onApplyCode,
+}: {
+  content: string;
+  onApplyCode: (code: string) => void;
+}) {
+  const parts = content.split(/(\`\`\`[\w]*\n[\s\S]*?\n\`\`\`|\`[^\`]+\`)/g);
+
+  return (
+    <>
+      {parts.map((part, i) => {
+        if (part.startsWith("\`\`\`")) {
+          const lang = part.match(/\`\`\`(\w+)/)?.[1] || "";
+          const code = part.replace(/\`\`\`[\w]*\n?/, "").replace(/\n?\`\`\`$/, "");
+          return (
+            <div key={i} className="code-block">
+              <div className="code-block-header">
+                <span>{lang || "code"}</span>
+                <button onClick={() => onApplyCode(code)}>
+                  <CodeIcon /> Apply to Editor
+                </button>
+              </div>
+              <pre>
+                <code>{code}</code>
+              </pre>
+            </div>
+          );
+        }
+        if (part.startsWith("\`") && part.endsWith("\`")) {
+          return (
+            <code key={i} className="inline-code">
+              {part.slice(1, -1)}
+            </code>
+          );
+        }
+        return <span key={i}>{part}</span>;
+      })}
+    </>
   );
 }

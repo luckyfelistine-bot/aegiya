@@ -3,9 +3,9 @@
 import React, { useState, useEffect, useCallback, lazy, Suspense } from "react";
 import { memory } from "@/lib/memory";
 import { ChatWindow } from "@/components/ChatWindow";
-import CosmosBackground from "@/components/CosmosBackground";
-import ThemePicker from "@/components/ThemePicker";
 import Toast from "@/components/Toast";
+import ThemePicker from "@/components/ThemePicker";
+import CosmosBackground from "@/components/CosmosBackground";
 import {
   HomeIcon,
   CodeIcon,
@@ -165,7 +165,7 @@ export default function Home() {
       <CosmosBackground />
 
       {/* Theme Switcher */}
-      <ThemePicker current={theme} onChange={handleThemeChange} />
+      <ThemePicker value={theme} onChange={handleThemeChange} />
 
       {/* Toast */}
       <Toast

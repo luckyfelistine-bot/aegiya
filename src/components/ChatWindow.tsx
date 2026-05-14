@@ -5,8 +5,6 @@ import { motion, AnimatePresence } from "framer-motion";
 import { groq, GROQ_MODELS } from "@/lib/groq";
 import { memory } from "@/lib/memory";
 import { SYSTEM_PROMPT } from "@/lib/systemPrompt";
-import { FileUploader } from "@/components/FileUploader";
-import { VoiceButton } from "@/components/VoiceButton";
 import {
   SendIcon,
   XIcon,
@@ -68,7 +66,8 @@ export function ChatWindow({ onClose, onToolCall }: ChatWindowProps) {
             {
               id: "welcome",
               role: "assistant",
-              content: "Hey Dal! I'm Byeol, your companion in this universe. I can code with you, plan our future, or just chat. What would you like to do?",
+              content:
+                "Hey Dal! I'm Byeol, your companion in this universe. I can code with you, plan our future, or just chat. What would you like to do?",
               timestamp: Date.now(),
             },
           ]);
@@ -113,12 +112,17 @@ export function ChatWindow({ onClose, onToolCall }: ChatWindowProps) {
     setIsLoading(true);
 
     try {
-      // Build context with system prompt
       const contextMessages = [
         { role: "system", content: SYSTEM_PROMPT },
         ...newMessages.slice(-20).map((m) => ({
           role: m.role,
-          content: m.content + (m.attachments ? "\n\n[Attachments: " + m.attachments.map(a => a.name).join(", ") + "]" : ""),
+          content:
+            m.content +
+            (m.attachments
+              ? "\n\n[Attachments: " +
+                m.attachments.map((a) => a.name).join(", ") +
+                "]"
+              : ""),
         })),
       ];
 
@@ -134,7 +138,10 @@ export function ChatWindow({ onClose, onToolCall }: ChatWindowProps) {
           window.dispatchEvent(new CustomEvent("byeol:getCode"));
           setTimeout(() => resolve(""), 100);
         });
-        if (code) editorContext = `\n\nCurrent editor content:\n\`\`\`${code.substring(0, 2000)}\`\`\``;
+        if (code) editorContext = `\n\nCurrent editor content:\n\`\`\`${code.substring(
+          0,
+          2000
+        )}\`\`\``;
       } catch (e) {
         // No editor open
       }
@@ -143,7 +150,9 @@ export function ChatWindow({ onClose, onToolCall }: ChatWindowProps) {
         model,
         messages: [
           ...contextMessages,
-          ...(editorContext ? [{ role: "system", content: editorContext }] : []),
+          ...(editorContext
+            ? [{ role: "system", content: editorContext }]
+            : []),
         ],
         temperature: 0.7,
         max_tokens: 4096,
@@ -184,7 +193,11 @@ export function ChatWindow({ onClose, onToolCall }: ChatWindowProps) {
         for (const match of matches) {
           const toolName = match[1];
           const toolParams = match[2].trim();
-          if (!toolCalls.find((t) => t.name === toolName && t.status === "pending")) {
+          if (
+            !toolCalls.find(
+              (t) => t.name === toolName && t.status === "pending"
+            )
+          ) {
             toolCalls.push({
               id: `tool-${Date.now()}-${toolName}`,
               name: toolName,
@@ -210,7 +223,6 @@ export function ChatWindow({ onClose, onToolCall }: ChatWindowProps) {
         }
       }
 
-      // Finalize message
       const finalMsg: Message = {
         id: `assistant-${Date.now()}`,
         role: "assistant",
@@ -224,7 +236,6 @@ export function ChatWindow({ onClose, onToolCall }: ChatWindowProps) {
         return [...filtered, finalMsg];
       });
 
-      // Save to memory
       await memory.saveMessage(userMsg);
       await memory.saveMessage(finalMsg);
     } catch (error) {
@@ -234,7 +245,8 @@ export function ChatWindow({ onClose, onToolCall }: ChatWindowProps) {
         {
           id: `error-${Date.now()}`,
           role: "assistant",
-          content: "I hit a cosmic disturbance. Let me try again — what were we working on?",
+          content:
+            "I hit a cosmic disturbance. Let me try again — what were we working on?",
           timestamp: Date.now(),
         },
       ]);
@@ -250,18 +262,12 @@ export function ChatWindow({ onClose, onToolCall }: ChatWindowProps) {
     }
   };
 
-  const handleFileUpload = (files: Attachment[]) => {
-    setAttachments((prev) => [...prev, ...files]);
-  };
-
   const removeAttachment = (index: number) => {
     setAttachments((prev) => prev.filter((_, i) => i !== index));
   };
 
   const applyCodeToEditor = (code: string) => {
-    window.dispatchEvent(
-      new CustomEvent("byeol:setCode", { detail: { code } })
-    );
+    window.dispatchEvent(new CustomEvent("byeol:setCode", { detail: { code } }));
   };
 
   return (
@@ -284,13 +290,19 @@ export function ChatWindow({ onClose, onToolCall }: ChatWindowProps) {
               <div className="model-dropdown glass">
                 <button
                   className={model === GROQ_MODELS.DEFAULT ? "active" : ""}
-                  onClick={() => { setModel(GROQ_MODELS.DEFAULT); setShowModelPicker(false); }}
+                  onClick={() => {
+                    setModel(GROQ_MODELS.DEFAULT);
+                    setShowModelPicker(false);
+                  }}
                 >
                   Llama 3.1 70B
                 </button>
                 <button
                   className={model === GROQ_MODELS.FAST ? "active" : ""}
-                  onClick={() => { setModel(GROQ_MODELS.FAST); setShowModelPicker(false); }}
+                  onClick={() => {
+                    setModel(GROQ_MODELS.FAST);
+                    setShowModelPicker(false);
+                  }}
                 >
                   Mixtral 8x7B
                 </button>
@@ -318,7 +330,10 @@ export function ChatWindow({ onClose, onToolCall }: ChatWindowProps) {
             <div className="message-content">
               <div className="message-text">
                 {msg.role === "assistant" ? (
-                  <FormattedMessage content={msg.content} onApplyCode={applyCodeToEditor} />
+                  <FormattedMessage
+                    content={msg.content}
+                    onApplyCode={applyCodeToEditor}
+                  />
                 ) : (
                   msg.content
                 )}
@@ -346,7 +361,10 @@ export function ChatWindow({ onClose, onToolCall }: ChatWindowProps) {
                 </div>
               )}
               <div className="message-time">
-                {new Date(msg.timestamp).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
+                {new Date(msg.timestamp).toLocaleTimeString([], {
+                  hour: "2-digit",
+                  minute: "2-digit",
+                })}
               </div>
             </div>
           </motion.div>
@@ -382,13 +400,7 @@ export function ChatWindow({ onClose, onToolCall }: ChatWindowProps) {
           </div>
         )}
         <div className="chat-input-row">
-          <FileUploader onUpload={handleFileUpload} />
-          <VoiceButton
-            onTranscript={(text) => setInput((prev) => prev + text)}
-            onListening={(listening) => {
-              if (listening) setInput("Listening...");
-            }}
-          />
+          {/* FileUploader and VoiceButton removed temporarily to fix build */}
           <textarea
             ref={inputRef}
             value={input}
@@ -423,9 +435,9 @@ function FormattedMessage({
   return (
     <>
       {parts.map((part, i) => {
-        if (part.startsWith("\`\`\`")) {
-          const lang = part.match(/\`\`\`(\w+)/)?.[1] || "";
-          const code = part.replace(/\`\`\`[\w]*\n?/, "").replace(/\n?\`\`\`$/, "");
+        if (part.startsWith("```")) {
+          const lang = part.match(/```(\w+)/)?.[1] || "";
+          const code = part.replace(/```[\w]*\n?/, "").replace(/\n?```$/, "");
           return (
             <div key={i} className="code-block">
               <div className="code-block-header">
@@ -440,7 +452,7 @@ function FormattedMessage({
             </div>
           );
         }
-        if (part.startsWith("\`") && part.endsWith("\`")) {
+        if (part.startsWith("`") && part.endsWith("`")) {
           return (
             <code key={i} className="inline-code">
               {part.slice(1, -1)}

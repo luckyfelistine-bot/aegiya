@@ -165,6 +165,7 @@ export default function CosmosBackground() {
     }
 
     function drawAdvancedStars(time: number, w: number, h: number) {
+      if (!ctx) return;  // ✅ safety check
       for (const star of starsRef.current) {
         const parallaxX = mouseRef.current.active ? mouseRef.current.x * star.z * 15 : 0;
         const parallaxY = mouseRef.current.active ? mouseRef.current.y * star.z * 15 : 0;
@@ -190,6 +191,7 @@ export default function CosmosBackground() {
     }
 
     function drawFallingStars(w: number, h: number) {
+      if (!ctx) return;  // ✅ safety check
       for (const star of fallingStarsRef.current) {
         star.y += star.speed;
         if (star.y > h) {
@@ -207,6 +209,7 @@ export default function CosmosBackground() {
     }
 
     function drawShootingStars(w: number, h: number) {
+      if (!ctx) return;  // ✅ safety check
       for (let i = shootingStarsRef.current.length - 1; i >= 0; i--) {
         const s = shootingStarsRef.current[i];
         s.x += s.vx;
@@ -237,7 +240,6 @@ export default function CosmosBackground() {
         ctx.fill();
       }
     }
-
     // ---------- Main animation loop ----------
     function animate() {
       if (!canvas || !ctx) return;

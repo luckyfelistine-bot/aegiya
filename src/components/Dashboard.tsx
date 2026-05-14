@@ -34,15 +34,46 @@ interface UserStats {
   streak: number;
 }
 
+interface DashboardPrefs {
+  showCoding: boolean;
+  showStatus: boolean;
+  showLesson: boolean;
+  showConstellation: boolean;
+  showVoice: boolean;
+  showFiles: boolean;
+  showProgress: boolean;
+}
+
 interface DashboardProps {
   isOpen: boolean;
   onClose: () => void;
   onNavigate: (view: string) => void;
 }
 
+// Map tile id to preference key
+const tileToPrefKey: Record<string, keyof DashboardPrefs> = {
+  "continue-coding": "showCoding",
+  "byeol-status": "showStatus",
+  "todays-lesson": "showLesson",
+  "constellation": "showConstellation",
+  "voice": "showVoice",
+  "files": "showFiles",
+  "progress": "showProgress",
+};
+
+const defaultPrefs: DashboardPrefs = {
+  showCoding: true,
+  showStatus: true,
+  showLesson: true,
+  showConstellation: true,
+  showVoice: true,
+  showFiles: true,
+  showProgress: true,
+};
+
 export default function Dashboard({ isOpen, onClose, onNavigate }: DashboardProps) {
   const [stats, setStats] = useState<UserStats>({ projects: 0, lessons: 0, streak: 0 });
-  const [hiddenTiles, setHiddenTiles] = useState<string[]>([]);
+  const [prefs, setPrefs] = useState<DashboardPrefs>(defaultPrefs);
   const [showCustomize, setShowCustomize] = useState(false);
   const [isVisible, setIsVisible] = useState(false);
 
@@ -129,7 +160,6 @@ export default function Dashboard({ isOpen, onClose, onNavigate }: DashboardProp
     },
   ];
 
-  // Load stats only – hiddenTiles persistence temporarily disabled
   useEffect(() => {
     const loadData = async () => {
       try {
@@ -143,6 +173,10 @@ export default function Dashboard({ isOpen, onClose, onNavigate }: DashboardProp
           lessons,
           streak,
         });
+
+        // Load dashboard preferences
+        const savedPrefs = await memory.getDashboardPrefs();
+        setPrefs(savedPrefs || defaultPrefs);
       } catch (error) {
         console.error("Failed to load dashboard data", error);
       }
@@ -176,16 +210,27 @@ export default function Dashboard({ isOpen, onClose, onNavigate }: DashboardProp
     [onNavigate, onClose]
   );
 
-  const toggleTileVisibility = useCallback((tileId: string) => {
-    setHiddenTiles((prev) =>
-      prev.includes(tileId)
-        ? prev.filter((id) => id !== tileId)
-        : [...prev, tileId]
-    );
-    // Persistence disabled – state resets on refresh
-  }, []);
+  const toggleTileVisibility = useCallback(async (tileId: string) => {
+    const key = tileToPrefKey[tileId];
+    if (!key) return;
 
-  const visibleTiles = allTiles.filter((tile) => !hiddenTiles.includes(tile.id));
+    const newPrefs = { ...prefs, [key]: !prefs[key] };
+    setPrefs(newPrefs);
+
+    // Persist to IndexedDB
+    try {
+      const { memory } = await import("@/lib/memory");
+      await memory.setDashboardPrefs(newPrefs);
+    } catch (error) {
+      console.error("Failed to save preferences", error);
+    }
+  }, [prefs]);
+
+  const visibleTiles = allTiles.filter((tile) => {
+    if (tile.id === "customize") return true;
+    const key = tileToPrefKey[tile.id];
+    return key ? prefs[key] : true;
+  });
 
   if (!isVisible && !isOpen) return null;
 
@@ -295,12 +340,12 @@ export default function Dashboard({ isOpen, onClose, onNavigate }: DashboardProp
             </div>
             <p className="text-sm text-starlight/60 mb-4">Select which tiles to display on your dashboard:</p>
             <div className="space-y-2 max-h-64 overflow-y-auto">
-              {allTiles.map((tile) => (
+              {allTiles.filter(t => t.id !== "customize").map((tile) => (
                 <button
                   key={tile.id}
                   onClick={() => toggleTileVisibility(tile.id)}
                   className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg transition-all duration-200 ${
-                    !hiddenTiles.includes(tile.id)
+                    tileToPrefKey[tile.id] && prefs[tileToPrefKey[tile.id]]
                       ? "bg-white/10 border border-white/20"
                       : "hover:bg-white/5 border border-transparent"
                   }`}
@@ -312,7 +357,9 @@ export default function Dashboard({ isOpen, onClose, onNavigate }: DashboardProp
                     {React.cloneElement(tile.icon as React.ReactElement, { size: 16 })}
                   </div>
                   <span className="text-sm text-starlight flex-1 text-left">{tile.title}</span>
-                  {!hiddenTiles.includes(tile.id) && <CheckIcon size={16} className="text-success flex-shrink-0" />}
+                  {tileToPrefKey[tile.id] && prefs[tileToPrefKey[tile.id]] && (
+                    <CheckIcon size={16} className="text-success flex-shrink-0" />
+                  )}
                 </button>
               ))}
             </div>

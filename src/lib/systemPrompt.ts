@@ -101,3 +101,22 @@ export const CODE_REVIEW_PROMPT = `Review this code as Byeol. Be thorough but ki
 - Praise what she did well
 - If it's great, celebrate it enthusiastically
 - Format: Clear sections with emoji headers`;
+
+export const defaultMemory = {
+  topics_covered: [],
+  last_project: "",
+  total_lessons_completed: 0,
+  preferred_colors: ["pink", "purple"],
+  nickname: "Dal",
+  ai_name: "Byeol",
+  important_dates: {
+    start: "2026-01-01",
+    birthday: "June 1st",
+  },
+  recent_chat_summary: "",
+};
+
+export function buildSystemPrompt(profile: any, memory: any) {
+  // Add your implementation here
+  return SYSTEM_PROMPT;
+}

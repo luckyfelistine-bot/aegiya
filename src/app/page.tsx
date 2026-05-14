@@ -68,7 +68,7 @@ export default function HomePage() {
 
       <Dashboard isOpen={isDashboardOpen} onClose={() => setIsDashboardOpen(false)} onNavigate={navigateTo} />
 
-      {/* Main Content */}
+      {/* Main Content – scrollable */}
       <div className="relative h-full w-full overflow-hidden">
         <div className="h-full w-full overflow-y-auto p-4 md:p-6 scrollable-content">
           {currentView === "universe" && <Universe3D />}
@@ -77,7 +77,7 @@ export default function HomePage() {
         </div>
       </div>
 
-      {/* Dock: only love emoji visible; dropdown on click */}
+      {/* Dock – heart button + dropdown */}
       <div className="fixed bottom-6 left-6 z-50">
         <button
           onClick={toggleDock}
@@ -88,7 +88,7 @@ export default function HomePage() {
         </button>
 
         {isDockOpen && (
-          <div className="absolute bottom-14 left-0 glass-panel p-2 min-w-[160px] flex flex-col gap-2 animate-fade-in-up">
+          <div className="absolute bottom-14 left-0 glass-panel p-2 min-w-[180px] flex flex-col gap-2 animate-fade-in-up">
             <button
               onClick={() => navigateTo("universe")}
               className={`flex items-center gap-3 px-4 py-2 rounded-lg transition-all ${
@@ -117,7 +117,8 @@ export default function HomePage() {
               <span className="text-sm">Chat</span>
             </button>
             <div className="border-t border-glass-border my-1" />
-            <ThemePicker />
+            {/* ThemePicker – its button will appear inside the dropdown */}
+            <ThemePicker value={currentView === "universe" ? "cosmic" : "andromeda"} onChange={(theme) => console.log("theme changed", theme)} />
           </div>
         )}
       </div>

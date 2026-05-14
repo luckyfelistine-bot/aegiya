@@ -2,6 +2,7 @@
 
 import { useEffect, useRef } from "react";
 
+// === Types for the advanced background ===
 interface Star {
   x: number;
   y: number;
@@ -23,10 +24,21 @@ interface ShootingStar {
   trail: { x: number; y: number; life: number }[];
 }
 
+interface FallingStar {
+  x: number;
+  y: number;
+  size: number;
+  speed: number;
+  opacity: number;
+}
+
 export default function CosmosBackground() {
   const canvasRef = useRef<HTMLCanvasElement>(null);
+  // Advanced stars
   const starsRef = useRef<Star[]>([]);
   const shootingStarsRef = useRef<ShootingStar[]>([]);
+  // Simple falling stars (stardust)
+  const fallingStarsRef = useRef<FallingStar[]>([]);
   const mouseRef = useRef({ x: 0, y: 0, active: false });
   const audioDataRef = useRef<Uint8Array>(new Uint8Array(64));
   const animRef = useRef<number>(0);
@@ -37,6 +49,7 @@ export default function CosmosBackground() {
     const ctx = canvas.getContext("2d");
     if (!ctx) return;
 
+    // ---------- Colours & helpers ----------
     const colors = ["#ffffff", "#00f0ff", "#ff6b9d", "#a855f7", "#ffd700"];
     const weights = [0.5, 0.15, 0.15, 0.12, 0.08];
 
@@ -49,11 +62,13 @@ export default function CosmosBackground() {
       return colors[0];
     }
 
+    // ---------- Initialisation ----------
     function resize() {
       if (!canvas) return;
       canvas.width = window.innerWidth;
       canvas.height = window.innerHeight;
       initStars();
+      initFallingStars();
     }
 
     function initStars() {
@@ -73,6 +88,20 @@ export default function CosmosBackground() {
       }
     }
 
+    function initFallingStars() {
+      const count = Math.min(120, Math.floor(window.innerWidth * 0.08));
+      fallingStarsRef.current = [];
+      for (let i = 0; i < count; i++) {
+        fallingStarsRef.current.push({
+          x: Math.random() * canvas!.width,
+          y: Math.random() * canvas!.height,
+          size: Math.random() * 2 + 0.5,
+          speed: Math.random() * 0.3 + 0.1,
+          opacity: Math.random(),
+        });
+      }
+    }
+
     function spawnShootingStar() {
       const startY = Math.random() * 0.3;
       const angle = Math.PI / 4 + (Math.random() - 0.5) * 0.3;
@@ -87,6 +116,7 @@ export default function CosmosBackground() {
       });
     }
 
+    // ---------- Drawing layers ----------
     function drawNebulaOrbs(time: number) {
       if (!canvas || !ctx) return;
       const w = canvas.width;
@@ -134,17 +164,7 @@ export default function CosmosBackground() {
       }
     }
 
-    function animate() {
-      if (!canvas || !ctx) return;
-      const w = canvas.width;
-      const h = canvas.height;
-      const time = Date.now() * 0.001;
-
-      ctx.clearRect(0, 0, w, h);
-      drawNebulaOrbs(time);
-      drawConstellationLines(w, h);
-
-      // Draw stars
+    function drawAdvancedStars(time: number, w: number, h: number) {
       for (const star of starsRef.current) {
         const parallaxX = mouseRef.current.active ? mouseRef.current.x * star.z * 15 : 0;
         const parallaxY = mouseRef.current.active ? mouseRef.current.y * star.z * 15 : 0;
@@ -167,9 +187,26 @@ export default function CosmosBackground() {
           ctx.fill();
         }
       }
-      ctx.globalAlpha = 1;
+    }
 
-      // Draw shooting stars
+    function drawFallingStars(w: number, h: number) {
+      for (const star of fallingStarsRef.current) {
+        star.y += star.speed;
+        if (star.y > h) {
+          star.y = 0;
+          star.x = Math.random() * w;
+        }
+        star.opacity += (Math.random() - 0.5) * 0.02;
+        star.opacity = Math.max(0.1, Math.min(1, star.opacity));
+
+        ctx.beginPath();
+        ctx.arc(star.x, star.y, star.size, 0, Math.PI * 2);
+        ctx.fillStyle = `rgba(255, 255, 255, ${star.opacity * 0.6})`;
+        ctx.fill();
+      }
+    }
+
+    function drawShootingStars(w: number, h: number) {
       for (let i = shootingStarsRef.current.length - 1; i >= 0; i--) {
         const s = shootingStarsRef.current[i];
         s.x += s.vx;
@@ -199,10 +236,27 @@ export default function CosmosBackground() {
         ctx.fillStyle = `rgba(255, 255, 255, ${s.life})`;
         ctx.fill();
       }
+    }
+
+    // ---------- Main animation loop ----------
+    function animate() {
+      if (!canvas || !ctx) return;
+      const w = canvas.width;
+      const h = canvas.height;
+      const time = Date.now() * 0.001;
+
+      ctx.clearRect(0, 0, w, h);
+      drawNebulaOrbs(time);
+      drawConstellationLines(w, h);
+      drawAdvancedStars(time, w, h);
+      drawFallingStars(w, h);
+      drawShootingStars(w, h);
+      ctx.globalAlpha = 1;
 
       animRef.current = requestAnimationFrame(animate);
     }
 
+    // ---------- Setup ----------
     resize();
     window.addEventListener("resize", resize);
     window.addEventListener("mousemove", (e) => {
@@ -211,7 +265,7 @@ export default function CosmosBackground() {
       mouseRef.current.active = true;
     });
 
-    const interval = setInterval(() => {
+    const shootingStarInterval = setInterval(() => {
       if (Math.random() < 0.3) spawnShootingStar();
     }, 3000);
 
@@ -219,12 +273,12 @@ export default function CosmosBackground() {
 
     return () => {
       window.removeEventListener("resize", resize);
-      clearInterval(interval);
+      clearInterval(shootingStarInterval);
       cancelAnimationFrame(animRef.current);
     };
   }, []);
 
-  // Expose audio data updater
+  // Expose audio data updater (for microphone integration)
   useEffect(() => {
     (window as any).__updateCosmosAudio = (data: Uint8Array) => {
       audioDataRef.current = data;

@@ -1,34 +1,52 @@
 import Groq from "groq-sdk";
 
-export const groq = new Groq({
-  apiKey: process.env.GROQ_API_KEY,
+const groqClient = new Groq({
+  apiKey: process.env.GROQ_API_KEY || "",
 });
 
-export const MODELS = {
-  CHAT: "llama-3.3-70b-versatile",
-  WHISPER: "whisper-large-v3-turbo",
+export const groq = groqClient;
+
+export const GROQ_MODELS = {
+  DEFAULT: "llama-3.1-70b-versatile",
+  FAST: "mixtral-8x7b-32768",
+  REASONING: "deepseek-r1-distill-llama-70b",
 } as const;
 
-// ✅ Add this named export for backward compatibility
-export const CHAT_MODEL = MODELS.CHAT;
+export async function streamChat(messages: any[], model = GROQ_MODELS.DEFAULT) {
+  return groq.chat.completions.create({
+    model,
+    messages,
+    temperature: 0.7,
+    max_tokens: 4096,
+    stream: true,
+  });
+}
 
+export async function quickChat(prompt: string, model = GROQ_MODELS.FAST) {
+  const response = await groq.chat.completions.create({
+    model,
+    messages: [{ role: "user", content: prompt }],
+    temperature: 0.7,
+    max_tokens: 1024,
+  });
+  return response.choices[0]?.message?.content || "";
+}
+
+// Retry wrapper with exponential backoff
 export async function withRetry<T>(
   fn: () => Promise<T>,
-  maxRetries: number = 3,
-  delay: number = 1000
+  maxRetries = 3,
+  delay = 1000
 ): Promise<T> {
   let lastError: any;
-
   for (let i = 0; i < maxRetries; i++) {
     try {
       return await fn();
-    } catch (error: any) {
+    } catch (error) {
       lastError = error;
-      if (error.status === 429 || error.status >= 500) {
+      if (i < maxRetries - 1) {
         await new Promise((r) => setTimeout(r, delay * Math.pow(2, i)));
-        continue;
       }
-      throw error;
     }
   }
   throw lastError;

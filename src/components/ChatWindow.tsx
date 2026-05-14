@@ -3,6 +3,7 @@
 import React, { useState, useRef, useEffect, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { groq, GROQ_MODELS } from "@/lib/groq";
+type GroqModel = typeof GROQ_MODELS[keyof typeof GROQ_MODELS];
 import { memory } from "@/lib/memory";
 import { SYSTEM_PROMPT } from "@/lib/systemPrompt";
 import {
@@ -47,7 +48,7 @@ export function ChatWindow({ onClose, onToolCall }: ChatWindowProps) {
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState("");
   const [isLoading, setIsLoading] = useState(false);
-  const [model, setModel] = useState(GROQ_MODELS.DEFAULT);
+  const [model, setModel] = useState<GroqModel>(GROQ_MODELS.DEFAULT);
   const [showModelPicker, setShowModelPicker] = useState(false);
   const [attachments, setAttachments] = useState<Attachment[]>([]);
   const messagesEndRef = useRef<HTMLDivElement>(null);

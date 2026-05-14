@@ -26,47 +26,16 @@ const DEFAULT_CODE = `<!DOCTYPE html>
 <html>
 <head>
   <style>
-    body {
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      min-height: 100vh;
-      margin: 0;
-      background: linear-gradient(135deg, #1a1a2e, #16213e);
-      font-family: 'Segoe UI', sans-serif;
-      color: white;
-    }
-    .heart-container {
-      text-align: center;
-    }
-    .heart {
-      font-size: 5rem;
-      animation: heartbeat 1.2s ease-in-out infinite;
-      display: inline-block;
-    }
-    @keyframes heartbeat {
-      0%, 100% { transform: scale(1); }
-      25% { transform: scale(1.1); }
-      50% { transform: scale(1); }
-      75% { transform: scale(1.05); }
-    }
-    h1 {
-      margin-top: 1rem;
-      font-size: 1.5rem;
-      color: #ff6b9d;
-    }
-    p {
-      color: #8b8aa3;
-      margin-top: 0.5rem;
-    }
+    body { display: flex; align-items: center; justify-content: center; min-height: 100vh; margin: 0; background: linear-gradient(135deg, #1a1a2e, #16213e); font-family: 'Segoe UI', sans-serif; color: white; }
+    .heart-container { text-align: center; }
+    .heart { font-size: 5rem; animation: heartbeat 1.2s ease-in-out infinite; }
+    @keyframes heartbeat { 0%,100%{transform:scale(1)} 25%{transform:scale(1.1)} 50%{transform:scale(1)} 75%{transform:scale(1.05)} }
+    h1 { margin-top: 1rem; color: #ff6b9d; }
+    p { color: #8b8aa3; }
   </style>
 </head>
 <body>
-  <div class="heart-container">
-    <div class="heart">❤️</div>
-    <h1>Dal's Heartbeat</h1>
-    <p>Byeol is always with you 💫</p>
-  </div>
+  <div class="heart-container"><div class="heart">❤️</div><h1>Dal's Heartbeat</h1><p>Byeol is always with you 💫</p></div>
 </body>
 </html>`;
 
@@ -75,17 +44,13 @@ export default function WorkspaceView({ showToast, onClose }: WorkspaceViewProps
   const [previewKey, setPreviewKey] = useState(0);
   const [error, setError] = useState<string | null>(null);
   const [layout, setLayout] = useState<"editor" | "preview" | "split">("split");
-  const [isPreviewLoading, setIsPreviewLoading] = useState(false);
 
-  // Load saved code
   useEffect(() => {
     const loadCode = async () => {
       try {
         const saved = await memory.getProfile("last_code");
         if (saved) setCode(saved);
-      } catch (e) {
-        console.error("Failed to load code:", e);
-      }
+      } catch (e) { console.error(e); }
     };
     loadCode();
 
@@ -107,21 +72,16 @@ export default function WorkspaceView({ showToast, onClose }: WorkspaceViewProps
   }, []);
 
   const runCode = useCallback(() => {
-    setIsPreviewLoading(true);
-    setPreviewKey((k) => k + 1);
+    setPreviewKey(prev => prev + 1);
     setError(null);
     showToast("success", "Preview Updated", "Your code is running!");
-    // Reset loading after a short delay
-    setTimeout(() => setIsPreviewLoading(false), 500);
   }, [showToast]);
 
   const copyCode = useCallback(async () => {
     try {
       await navigator.clipboard.writeText(code);
       showToast("success", "Copied!", "Code copied to clipboard");
-    } catch {
-      showToast("error", "Copy Failed", "Could not copy to clipboard");
-    }
+    } catch { showToast("error", "Copy Failed", "Could not copy to clipboard"); }
   }, [code, showToast]);
 
   const downloadCode = useCallback(() => {
@@ -135,10 +95,8 @@ export default function WorkspaceView({ showToast, onClose }: WorkspaceViewProps
       a.click();
       document.body.removeChild(a);
       URL.revokeObjectURL(url);
-      showToast("success", "Downloaded!", "Your project has been saved");
-    } catch {
-      showToast("error", "Download Failed", "Could not download file");
-    }
+      showToast("success", "Downloaded!", "Project saved");
+    } catch { showToast("error", "Download Failed", "Could not download file"); }
   }, [code, showToast]);
 
   const openPreview = useCallback(() => {
@@ -147,119 +105,91 @@ export default function WorkspaceView({ showToast, onClose }: WorkspaceViewProps
     window.open(url, "_blank");
   }, [code]);
 
+  // Inline styles to force correct layout
+  const splitContainerStyle: React.CSSProperties = {
+    display: 'flex',
+    flexDirection: 'row',
+    gap: '12px',
+    width: '100%',
+    height: '100%',
+  };
+
+  const paneStyle: React.CSSProperties = {
+    flex: 1,
+    minWidth: 0,
+    display: 'flex',
+    flexDirection: 'column',
+    overflow: 'hidden',
+  };
+
+  const editorPreviewStyle = (isSplit: boolean) => {
+    if (!isSplit) return { width: '100%', height: '100%' };
+    return splitContainerStyle;
+  };
+
   return (
     <div className="workspace-view">
       {/* Toolbar */}
       <div className="workspace-toolbar glass">
         <div className="toolbar-left">
-          <button className="toolbar-btn" onClick={onClose} title="Back to Universe">
-            ← Back
-          </button>
+          <button className="toolbar-btn" onClick={onClose}>← Back</button>
           <div className="toolbar-divider" />
-          <button
-            className={`toolbar-btn ${layout === "editor" ? "active" : ""}`}
-            onClick={() => setLayout("editor")}
-          >
-            Editor
-          </button>
-          <button
-            className={`toolbar-btn ${layout === "preview" ? "active" : ""}`}
-            onClick={() => setLayout("preview")}
-          >
-            Preview
-          </button>
-          <button
-            className={`toolbar-btn ${layout === "split" ? "active" : ""}`}
-            onClick={() => setLayout("split")}
-          >
-            Split
-          </button>
+          <button className={`toolbar-btn ${layout === "editor" ? "active" : ""}`} onClick={() => setLayout("editor")}>Editor</button>
+          <button className={`toolbar-btn ${layout === "preview" ? "active" : ""}`} onClick={() => setLayout("preview")}>Preview</button>
+          <button className={`toolbar-btn ${layout === "split" ? "active" : ""}`} onClick={() => setLayout("split")}>Split</button>
         </div>
         <div className="toolbar-right">
-          <button className="toolbar-btn" onClick={copyCode} title="Copy">
-            <CopyIcon /> Copy
-          </button>
-          <button className="toolbar-btn" onClick={downloadCode} title="Download">
-            <DownloadIcon /> Download
-          </button>
-          <button className="toolbar-btn" onClick={runCode} title="Run">
-            <PlayIcon /> Run
-          </button>
-          <button className="toolbar-btn" onClick={openPreview} title="Open in new tab">
-            <ExternalLinkIcon /> New Tab
-          </button>
+          <button className="toolbar-btn" onClick={copyCode}><CopyIcon /> Copy</button>
+          <button className="toolbar-btn" onClick={downloadCode}><DownloadIcon /> Download</button>
+          <button className="toolbar-btn" onClick={runCode}><PlayIcon /> Run</button>
+          <button className="toolbar-btn" onClick={openPreview}><ExternalLinkIcon /> New Tab</button>
         </div>
       </div>
 
-      {/* Editor / Preview area */}
+      {/* Main area */}
       <div className="workspace-body">
-        <div className={`editor-preview-container ${layout}`}>
+        <div style={editorPreviewStyle(layout === "split")}>
           {(layout === "editor" || layout === "split") && (
-            <div className="pane glass">
+            <div style={layout === "split" ? paneStyle : { ...paneStyle, width: '100%' }} className="pane glass">
               <div className="pane-header">
                 <div className="pane-title">Source Code</div>
                 <div className="pane-actions">
-                  <button className="icon-btn" title="Copy" onClick={copyCode}>
-                    <CopyIcon />
-                  </button>
-                  <button className="icon-btn" title="Download" onClick={downloadCode}>
-                    <DownloadIcon />
-                  </button>
-                  <button className="icon-btn" title="Run" onClick={runCode}>
-                    <PlayIcon />
-                  </button>
+                  <button className="icon-btn" title="Copy" onClick={copyCode}><CopyIcon /></button>
+                  <button className="icon-btn" title="Download" onClick={downloadCode}><DownloadIcon /></button>
+                  <button className="icon-btn" title="Run" onClick={runCode}><PlayIcon /></button>
                 </div>
               </div>
-              <div className="pane-content">
+              <div className="pane-content" style={{ flex: 1, overflow: 'auto' }}>
                 <CodeMirror
                   value={code}
                   height="100%"
                   theme="dark"
                   extensions={[html()]}
                   onChange={handleCodeChange}
-                  basicSetup={{
-                    lineNumbers: true,
-                    highlightActiveLineGutter: true,
-                    highlightActiveLine: true,
-                    foldGutter: false,
-                  }}
+                  basicSetup={{ lineNumbers: true, highlightActiveLineGutter: true, highlightActiveLine: true }}
                 />
               </div>
             </div>
           )}
 
           {(layout === "preview" || layout === "split") && (
-            <div className="pane glass">
+            <div style={layout === "split" ? paneStyle : { ...paneStyle, width: '100%' }} className="pane glass">
               <div className="pane-header">
                 <div className="pane-title">Live Preview</div>
                 <div className="pane-actions">
-                  <button className="icon-btn" title="Refresh" onClick={runCode}>
-                    <RefreshIcon />
-                  </button>
-                  <button className="icon-btn" title="Open in new tab" onClick={openPreview}>
-                    <ExternalLinkIcon />
-                  </button>
+                  <button className="icon-btn" title="Refresh" onClick={runCode}><RefreshIcon /></button>
+                  <button className="icon-btn" title="Open in new tab" onClick={openPreview}><ExternalLinkIcon /></button>
                 </div>
               </div>
-              <div className="preview-frame">
-                {isPreviewLoading && (
-                  <div className="preview-loading">
-                    <div className="loading-spinner" />
-                    <span>Rendering...</span>
-                  </div>
-                )}
+              <div className="preview-frame" style={{ flex: 1, position: 'relative' }}>
                 <iframe
                   key={previewKey}
                   srcDoc={code}
                   sandbox="allow-scripts allow-same-origin"
                   title="Preview"
-                  onLoad={() => setIsPreviewLoading(false)}
+                  style={{ width: '100%', height: '100%', border: 'none' }}
                 />
-                {error && (
-                  <div className={`error-overlay ${error ? "show" : ""}`}>
-                    <div>{error}</div>
-                  </div>
-                )}
+                {error && <div className="error-overlay show"><div>{error}</div></div>}
               </div>
             </div>
           )}

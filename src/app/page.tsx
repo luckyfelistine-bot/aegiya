@@ -3,9 +3,11 @@
 import React, { useState, useEffect, useCallback, lazy, Suspense } from "react";
 import { memory } from "@/lib/memory";
 import { ChatWindow } from "@/components/ChatWindow";
-import { Toast } from "@/components/Toast";
-import { ThemePicker } from "@/components/ThemePicker";
-import { CosmosBackground } from "@/components/CosmosBackground";
+import CosmosBackground from "@/components/CosmosBackground";
+import ThemePicker from "@/components/ThemePicker";
+import Toast from "@/components/Toast";
+import FileUploader from "@/components/FileUploader";
+import VoiceButton from "@/components/VoiceButton";
 import {
   HomeIcon,
   CodeIcon,

@@ -178,7 +178,7 @@ export default function HomePage() {
         <div className="h-full pb-20 md:pb-0 md:pl-20">
           {currentView === "universe" && <Universe3D />}
           {currentView === "workspace" && <WorkspaceView showToast={showToast} onClose={() => setCurrentView("universe")} />}
-          {currentView === "chat" && <ChatWindow />}
+          {currentView === "chat" && <ChatWindow onClose={() => setCurrentView("universe")} onToolCall={handleToolCall} />}
         </div>
       </div>
 

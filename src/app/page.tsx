@@ -22,7 +22,9 @@ import {
 } from "@/components/SvgIcons";
 
 // Lazy load heavy views
-const UniverseView = lazy(() => import("@/components/UniverseView"));
+import dynamic from "next/dynamic";
+
+const UniverseView = dynamic(() => import("@/components/UniverseView"), { ssr: false });
 const WorkspaceView = lazy(() => import("@/components/WorkspaceView"));
 
 type ViewType = "universe" | "workspace" | "chat";

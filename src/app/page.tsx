@@ -21,11 +21,10 @@ import {
   StarIcon,
 } from "@/components/SvgIcons";
 
-// Lazy load heavy views
 import dynamic from "next/dynamic";
 
 const UniverseView = dynamic(() => import("@/components/UniverseView"), { ssr: false });
-const WorkspaceView = lazy(() => import("@/components/WorkspaceView"));
+const WorkspaceView = dynamic(() => import("@/components/WorkspaceView"), { ssr: false });
 
 type ViewType = "universe" | "workspace" | "chat";
 type UniverseScene = "home" | "city" | "vacation" | "family" | "future";
@@ -137,10 +136,7 @@ export default function Home() {
           showToast("info", "Workspace Opened", "Byeol opened the editor for you");
           return { success: true };
         case "setCode":
-          // Will be handled by WorkspaceView via ref or context
-          window.dispatchEvent(
-            new CustomEvent("byeol:setCode", { detail: params.code })
-          );
+          window.dispatchEvent(new CustomEvent("byeol:setCode", { detail: { code: params.code } }));
           setCurrentView("workspace");
           return { success: true };
         case "createProject":
@@ -166,26 +162,17 @@ export default function Home() {
     <div className="app-shell">
       <CosmosBackground />
 
-      {/* Theme Switcher */}
       <ThemePicker value={theme} onChange={handleThemeChange} />
 
-      {/* Toast */}
       <Toast
         {...toast}
         onClose={() => setToast((t) => ({ ...t, show: false }))}
       />
 
-      {/* Onboarding */}
-      {showOnboarding && (
-        <OnboardingModal onComplete={handleOnboardingComplete} />
-      )}
+      {showOnboarding && <OnboardingModal onComplete={handleOnboardingComplete} />}
 
-      {/* Mobile Chat Overlay */}
       {isMobile && chatOpen && (
-        <div
-          className="chat-overlay open"
-          onClick={() => setChatOpen(false)}
-        />
+        <div className="chat-overlay open" onClick={() => setChatOpen(false)} />
       )}
 
       {/* LEFT: Dock */}
@@ -224,7 +211,6 @@ export default function Home() {
 
         <div className="dock-divider" />
 
-        {/* Universe Scene Switcher */}
         <DockButton
           active={universeScene === "home"}
           onClick={() => handleSceneChange("home")}
@@ -271,9 +257,7 @@ export default function Home() {
             <UniverseView
               scene={universeScene}
               onSceneChange={handleSceneChange}
-              onOpenChat={() =>
-                isMobile ? setChatOpen(true) : setCurrentView("chat")
-              }
+              onOpenChat={() => (isMobile ? setChatOpen(true) : setCurrentView("chat"))}
               onOpenWorkspace={() => setCurrentView("workspace")}
             />
           </Suspense>
@@ -320,11 +304,7 @@ export default function Home() {
         <div className={`chat-drawer ${chatOpen ? "open" : ""}`}>
           <div className="chat-drawer-header">
             <h3>Byeol</h3>
-            <button
-              className="icon-btn"
-              onClick={() => setChatOpen(false)}
-              aria-label="Close chat"
-            >
+            <button className="icon-btn" onClick={() => setChatOpen(false)} aria-label="Close chat">
               <XIcon />
             </button>
           </div>
@@ -388,10 +368,7 @@ function OnboardingModal({
           <SparklesIcon />
         </div>
         <h2>Welcome, Dal</h2>
-        <p>
-          Byeol has been waiting for you. Let&apos;s personalize your universe
-          before we begin.
-        </p>
+        <p>Byeol has been waiting for you. Let&apos;s personalize your universe before we begin.</p>
 
         <div className="form-group">
           <label>Your Name</label>
@@ -418,10 +395,7 @@ function OnboardingModal({
           />
         </div>
 
-        <button
-          className="neon-btn"
-          onClick={() => onComplete({ name, colors, study })}
-        >
+        <button className="neon-btn" onClick={() => onComplete({ name, colors, study })}>
           Enter Our Universe
         </button>
       </div>

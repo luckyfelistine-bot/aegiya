@@ -159,7 +159,6 @@ export default function Home() {
     [showToast]
   );
 
-  // Toggle dashboard
   const toggleDashboard = () => setIsDashboardOpen(!isDashboardOpen);
 
   return (
@@ -175,7 +174,7 @@ export default function Home() {
       {/* Collapsible Dashboard Sidebar */}
       <aside className={`dashboard-sidebar ${isDashboardOpen ? "open" : ""}`}>
         <div className="dashboard-sidebar-header">
-          <button className="close-dashboard" onClick={toggleDashboard}>
+          <button className="close-dashboard" onClick={toggleDashboard} aria-label="Close dashboard">
             <XIcon />
           </button>
         </div>
@@ -184,9 +183,13 @@ export default function Home() {
             onNavigate={(view) => {
               if (view === "workspace") setCurrentView("workspace");
               else if (view === "constellation") setCurrentView("universe");
+              // Close dashboard after navigation (optional)
               setIsDashboardOpen(false);
             }}
-            onOpenLesson={() => setCurrentView("workspace")}
+            onOpenLesson={() => {
+              setCurrentView("workspace");
+              setIsDashboardOpen(false);
+            }}
           />
         </div>
       </aside>

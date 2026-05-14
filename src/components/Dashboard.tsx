@@ -3,8 +3,15 @@
 import React, { useState, useEffect } from "react";
 import { memory, DashboardPrefs, defaultDashboardPrefs } from "@/lib/memory";
 import {
-  CodeIcon, StarIcon, CalendarIcon, ConstellationIcon,
-  MicIcon, FileIcon, DoveIcon, SparklesIcon, CloseIcon, SettingsIcon
+  CodeIcon,
+  StarIcon,
+  CalendarIcon,
+  ConstellationIcon,
+  MicIcon,
+  FileIcon,
+  DoveIcon,
+  SparklesIcon,
+  SettingsIcon,
 } from "./SvgIcons";
 
 interface DashboardProps {
@@ -18,10 +25,21 @@ export default function Dashboard({ onNavigate, onOpenLesson }: DashboardProps) 
   const [stats, setStats] = useState({ projects: 0, sessions: 0, streak: 0 });
 
   useEffect(() => {
-    memory.getDashboardPrefs().then(setPrefs);
-    memory.getProjects().then((p) => setStats((s) => ({ ...s, projects: p.length })));
-    memory.getProfile("lessonsCompleted").then((n) => setStats((s) => ({ ...s, sessions: n || 0 })));
-    memory.getProfile("streak").then((n) => setStats((s) => ({ ...s, streak: n || 0 })));
+    const load = async () => {
+      try {
+        const dashboardPrefs = await memory.getDashboardPrefs();
+        setPrefs(dashboardPrefs);
+        const projects = await memory.getProjects();
+        setStats((s) => ({ ...s, projects: projects.length }));
+        const lessons = await memory.getProfile("lessonsCompleted");
+        setStats((s) => ({ ...s, sessions: lessons || 0 }));
+        const streak = await memory.getProfile("streak");
+        setStats((s) => ({ ...s, streak: streak || 0 }));
+      } catch (e) {
+        console.error("Failed to load dashboard data", e);
+      }
+    };
+    load();
   }, []);
 
   const togglePref = async (key: keyof DashboardPrefs) => {
@@ -34,7 +52,7 @@ export default function Dashboard({ onNavigate, onOpenLesson }: DashboardProps) 
     {
       key: "showCoding" as const,
       size: "bento-hero",
-      icon: <CodeIcon size={20} />,
+      icon: CodeIcon,
       title: "Continue Coding",
       desc: "Pick up where you left off. Byeol has some new ideas for you.",
       meta: "Last edited: 2 hours ago",
@@ -43,7 +61,7 @@ export default function Dashboard({ onNavigate, onOpenLesson }: DashboardProps) 
     {
       key: "showStatus" as const,
       size: "bento-tall",
-      icon: <StarIcon size={20} />,
+      icon: StarIcon,
       title: "Byeol's Status",
       desc: "Byeol is shining bright today. She's ready to help with medicine, coding, or just chat.",
       meta: "Uptime: 47 days",
@@ -52,7 +70,7 @@ export default function Dashboard({ onNavigate, onOpenLesson }: DashboardProps) 
     {
       key: "showLesson" as const,
       size: "bento-medium",
-      icon: <CalendarIcon size={20} />,
+      icon: CalendarIcon,
       title: "Today's Lesson",
       desc: "CSS Heartbeat Animation — 5 min micro-project",
       meta: "New • Tap to start",
@@ -61,7 +79,7 @@ export default function Dashboard({ onNavigate, onOpenLesson }: DashboardProps) 
     {
       key: "showConstellation" as const,
       size: "bento-medium",
-      icon: <ConstellationIcon size={20} />,
+      icon: ConstellationIcon,
       title: "Constellation",
       desc: "Your memory map has 7 stars now. Each one is a moment you and Byeol shared.",
       meta: "7 stars • 2 constellations",
@@ -70,7 +88,7 @@ export default function Dashboard({ onNavigate, onOpenLesson }: DashboardProps) 
     {
       key: "showVoice" as const,
       size: "bento-small",
-      icon: <MicIcon size={20} />,
+      icon: MicIcon,
       title: "Voice",
       desc: "Talk to Byeol",
       meta: "Hold to speak",
@@ -79,7 +97,7 @@ export default function Dashboard({ onNavigate, onOpenLesson }: DashboardProps) 
     {
       key: "showFiles" as const,
       size: "bento-small",
-      icon: <FileIcon size={20} />,
+      icon: FileIcon,
       title: "Files",
       desc: "Upload notes",
       meta: "3 files",
@@ -88,7 +106,7 @@ export default function Dashboard({ onNavigate, onOpenLesson }: DashboardProps) 
     {
       key: "showProgress" as const,
       size: "bento-wide",
-      icon: <DoveIcon size={20} />,
+      icon: DoveIcon,
       title: "Your Progress",
       desc: `You've completed ${stats.projects} coding micro-projects and ${stats.sessions} medical study sessions. Byeol is incredibly proud of you, Dal.`,
       meta: `${stats.projects} projects • ${stats.sessions} sessions • ${stats.streak} day streak`,
@@ -100,18 +118,35 @@ export default function Dashboard({ onNavigate, onOpenLesson }: DashboardProps) 
 
   return (
     <div className="bento-grid">
-      {visibleTiles.map((tile) => (
-        <div key={tile.key} className={`bento-tile ${tile.size}`} onClick={tile.action} tabIndex={0}>
-          <div className="tile-icon">{tile.icon}</div>
-          <div className="tile-title">{tile.title}</div>
-          <div className="tile-desc">{tile.desc}</div>
-          <div className="tile-meta">{tile.meta}</div>
-        </div>
-      ))}
+      {visibleTiles.map((tile) => {
+        const IconComponent = tile.icon;
+        return (
+          <div
+            key={tile.key}
+            className={`bento-tile ${tile.size}`}
+            onClick={tile.action}
+            tabIndex={0}
+            role="button"
+          >
+            <div className="tile-icon">
+              <IconComponent size={24} />
+            </div>
+            <div className="tile-title">{tile.title}</div>
+            <div className="tile-desc">{tile.desc}</div>
+            <div className="tile-meta">{tile.meta}</div>
+          </div>
+        );
+      })}
 
-      {/* Customize button */}
-      <div className="bento-tile bento-small" onClick={() => setShowSettings(true)} tabIndex={0}>
-        <div className="tile-icon"><SettingsIcon size={20} /></div>
+      <div
+        className="bento-tile bento-small"
+        onClick={() => setShowSettings(true)}
+        tabIndex={0}
+        role="button"
+      >
+        <div className="tile-icon">
+          <SettingsIcon size={24} />
+        </div>
         <div className="tile-title">Customize</div>
         <div className="tile-desc">Choose what you see</div>
         <div className="tile-meta">{visibleTiles.length} tiles visible</div>
@@ -139,7 +174,7 @@ export default function Dashboard({ onNavigate, onOpenLesson }: DashboardProps) 
                     type="checkbox"
                     checked={prefs[tile.key]}
                     onChange={() => togglePref(tile.key)}
-                    style={{ width: 18, height: 18, accentColor: "var(--star-cyan)" }}
+                    style={{ width: 18, height: 18, accentColor: "var(--accent-secondary)" }}
                   />
                   <span style={{ fontSize: "0.95rem" }}>{tile.title}</span>
                 </label>

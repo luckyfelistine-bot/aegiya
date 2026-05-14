@@ -8,9 +8,8 @@ export const groq = new Groq({
 });
 
 export const GROQ_MODELS = {
-  DEFAULT: "llama-3.1-70b-versatile",
-  FAST: "mixtral-8x7b-32768",
-  REASONING: "deepseek-r1-distill-llama-70b",
+  DEFAULT: "llama-3.3-70b-versatile",
+  FAST: "llama-3.1-8b-instant",
 } as const;
 
 export const CHAT_MODEL = GROQ_MODELS.DEFAULT;

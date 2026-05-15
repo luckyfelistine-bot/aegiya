@@ -4,7 +4,8 @@ import { useState, useEffect, useCallback, Suspense } from "react";
 import dynamic from "next/dynamic";
 import CosmosBackground from "@/components/CosmosBackground";
 import Dashboard from "@/components/Dashboard";
-import { useToast, ToastContainer } from "@/components/Toast";
+import { useToast } from "@/components/Toast";
+import ToastContainer from "@/components/Toast";
 import { memory } from "@/lib/memory";
 import {
   HomeIcon,

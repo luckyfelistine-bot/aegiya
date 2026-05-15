@@ -4,7 +4,7 @@ import { useState, useEffect, useCallback, Suspense } from "react";
 import dynamic from "next/dynamic";
 import CosmosBackground from "@/components/CosmosBackground";
 import Dashboard from "@/components/Dashboard";
-import { useToast } from "@/components/Toast";
+import { useToast, type ToastType } from "@/components/Toast";
 import ToastContainer from "@/components/Toast";
 import { memory } from "@/lib/memory";
 import {
@@ -99,7 +99,7 @@ export default function Home() {
   const views: Record<View, React.ReactNode> = {
     dashboard: <Dashboard onNavigate={navigate} onOpenLesson={() => showToast("Lesson feature coming soon!", "info")} />,
     chat: <ChatWindow onClose={() => navigate("universe")} />,
-    workspace: <WorkspaceView showToast={(msg, type) => showToast(msg, type || "info")} onClose={() => navigate("universe")} />,
+    workspace: <WorkspaceView showToast={(msg, type) => showToast(msg, (type || "info") as ToastType)} onClose={() => navigate("universe")} />,
     universe: <Universe3D />,
     constellation: <ConstellationMap />,
   };
@@ -161,9 +161,7 @@ export default function Home() {
       )}
 
       {/* Mobile menu overlay */}
-      {sidebarOpen && (
-        <div className="sidebar-overlay open" onClick={() => setSidebarOpen(false)} />
-      )}
+      {sidebarOpen && <div className="sidebar-overlay open" onClick={() => setSidebarOpen(false)} />}
 
       {/* Mobile sidebar */}
       <div className={`dashboard-sidebar ${sidebarOpen ? "open" : ""}`}>
@@ -237,11 +235,7 @@ export default function Home() {
           <ConstellationIcon size={20} />
         </button>
         <div className="dock-divider" />
-        <button
-          className="dock-btn hide-mobile"
-          onClick={() => setSidebarOpen(true)}
-          aria-label="Menu"
-        >
+        <button className="dock-btn hide-mobile" onClick={() => setSidebarOpen(true)} aria-label="Menu">
           <MenuIcon size={20} />
         </button>
 
@@ -261,7 +255,7 @@ export default function Home() {
         )}
       </nav>
 
-      {/* Main content — ALWAYS scrollable, NEVER split with universe */}
+      {/* Main content – always scrollable */}
       <main className="main-content">
         <Suspense
           fallback={

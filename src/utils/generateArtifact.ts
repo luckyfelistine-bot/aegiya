@@ -92,6 +92,22 @@ const EXTENSIONS: Record<ArtifactType, string> = {
   zip: 'zip',
 };
 
+export function downloadBlob(blob: Blob, filename: string): void {
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+}
+
+function downloadTextFile(content: string, filename: string, mimeType: string): void {
+  const blob = new Blob([content], { type: mimeType });
+  downloadBlob(blob, filename);
+}
+
 export async function generateArtifact(config: ArtifactConfig): Promise<void> {
   const { type, content, title = 'Byeol_Artifact', filename, files, options } = config;
   const safeName = (filename || title)
@@ -110,18 +126,6 @@ export async function generateArtifact(config: ArtifactConfig): Promise<void> {
     const mime = MIME_TYPES[type] || 'text/plain';
     downloadTextFile(content, `${safeName}.${ext}`, mime);
   }
-}
-
-function downloadTextFile(content: string, filename: string, mimeType: string): void {
-  const blob = new Blob([content], { type: mimeType });
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement('a');
-  a.href = url;
-  a.download = filename;
-  document.body.appendChild(a);
-  a.click();
-  document.body.removeChild(a);
-  URL.revokeObjectURL(url);
 }
 
 function sanitizeForPDF(text: string): string {
@@ -268,12 +272,7 @@ export async function generateEnhancedDOCX(
   });
 
   const blob = await Packer.toBlob(doc);
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement('a');
-  a.href = url;
-  a.download = `${title.replace(/\s/g, '_')}.docx`;
-  a.click();
-  URL.revokeObjectURL(url);
+  downloadBlob(blob, `${title.replace(/\s/g, '_')}.docx`);
 }
 
 function parseMarkdownToDOCX(text: string): Paragraph[] {
@@ -337,10 +336,7 @@ export async function generateZIP(files: ArtifactFile[], baseName: string): Prom
     const zip = new JSZip();
     for (const file of files) zip.file(file.name, file.content);
     const blob = await zip.generateAsync({ type: 'blob' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url; a.download = `${baseName}.zip`; a.click();
-    URL.revokeObjectURL(url);
+    downloadBlob(blob, `${baseName}.zip`);
   } catch (err) {
     console.warn('JSZip not available; falling back to individual downloads', err);
     for (const file of files) {
@@ -388,6 +384,7 @@ export async function generateSmartArtifact(
   await generateArtifact({ type, content, title: title || 'Byeol_Artifact' });
 }
 
+// Legacy exports for backward compatibility
 export function generatePDF(content: string, title: string): void {
   generateEnhancedPDF(content, title);
 }

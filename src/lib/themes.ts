@@ -5,111 +5,173 @@
  */
 
 export interface Theme {
+  id: string;
   name: string;
-  label: string;         // display name (e.g., "Mystic Pink")
-  mood: string;          // mood description (e.g., "Romantic")
-  primary: string;       // main accent
-  secondary: string;     // background panels
-  surface: string;       // chat bubbles
-  text: string;
-  border: string;
-  swatch: string;        // CSS gradient or solid color for preview
+  label: string;
+  mood: string;
+  primary: string;
+  secondary: string;
+  accent: string;
+  swatch: string;
 }
 
-export const builtInThemes: Theme[] = [
+export const themes: Theme[] = [
   {
-    name: "Mystic Pink",
-    label: "Mystic Pink",
-    mood: "Romantic & Soft",
-    primary: "#ec4899",
-    secondary: "#fbcfe8",
-    surface: "#fdf2f8",
-    text: "#831843",
-    border: "#f9a8d4",
-    swatch: "linear-gradient(135deg, #ec4899, #fbcfe8)"
+    id: "cosmic",
+    name: "Cosmic Purple",
+    label: "Cosmic Purple",
+    mood: "Mystical & Deep",
+    primary: "#c084fc",
+    secondary: "#00d4ff",
+    accent: "#ff6b9d",
+    swatch: "linear-gradient(135deg, #c084fc, #00d4ff, #ff6b9d)",
   },
   {
-    name: "Purple Night",
-    label: "Purple Night",
-    mood: "Mysterious & Deep",
+    id: "aurora",
+    name: "Aurora Borealis",
+    label: "Aurora",
+    mood: "Ethereal & Calm",
+    primary: "#22d3ee",
+    secondary: "#a78bfa",
+    accent: "#f472b6",
+    swatch: "linear-gradient(135deg, #22d3ee, #a78bfa, #f472b6)",
+  },
+  {
+    id: "nebula",
+    name: "Nebula Violet",
+    label: "Nebula",
+    mood: "Dreamy & Mysterious",
     primary: "#a855f7",
-    secondary: "#ede9fe",
-    surface: "#f5f3ff",
-    text: "#4c1d95",
-    border: "#c4b5fd",
-    swatch: "linear-gradient(135deg, #a855f7, #ede9fe)"
+    secondary: "#2dd4bf",
+    accent: "#fb7185",
+    swatch: "linear-gradient(135deg, #a855f7, #2dd4bf, #fb7185)",
   },
   {
-    name: "Ocean Calm",
-    label: "Ocean Calm",
-    mood: "Serene & Peaceful",
-    primary: "#0ea5e9",
-    secondary: "#e0f2fe",
-    surface: "#f0f9ff",
-    text: "#0c4a6e",
-    border: "#7dd3fc",
-    swatch: "linear-gradient(135deg, #0ea5e9, #e0f2fe)"
-  },
-  {
-    name: "Sunset Glow",
-    label: "Sunset Glow",
+    id: "solar",
+    name: "Solar Flare",
+    label: "Solar",
     mood: "Warm & Energetic",
-    primary: "#f97316",
-    secondary: "#ffedd5",
-    surface: "#fff7ed",
-    text: "#7c2d12",
-    border: "#fdba74",
-    swatch: "linear-gradient(135deg, #f97316, #ffedd5)"
+    primary: "#f59e0b",
+    secondary: "#f97316",
+    accent: "#ef4444",
+    swatch: "linear-gradient(135deg, #f59e0b, #f97316, #ef4444)",
   },
   {
-    name: "Mint Forest",
-    label: "Mint Forest",
+    id: "lunar",
+    name: "Lunar Silver",
+    label: "Lunar",
+    mood: "Serene & Quiet",
+    primary: "#94a3b8",
+    secondary: "#cbd5e1",
+    accent: "#e879f9",
+    swatch: "linear-gradient(135deg, #94a3b8, #cbd5e1, #e879f9)",
+  },
+  {
+    id: "oceanic",
+    name: "Oceanic Blue",
+    label: "Oceanic",
+    mood: "Deep & Flowing",
+    primary: "#0ea5e9",
+    secondary: "#38bdf8",
+    accent: "#818cf8",
+    swatch: "linear-gradient(135deg, #0ea5e9, #38bdf8, #818cf8)",
+  },
+  {
+    id: "rose",
+    name: "Rose Garden",
+    label: "Rose",
+    mood: "Romantic & Soft",
+    primary: "#f43f5e",
+    secondary: "#fb7185",
+    accent: "#fda4af",
+    swatch: "linear-gradient(135deg, #f43f5e, #fb7185, #fda4af)",
+  },
+  {
+    id: "forest",
+    name: "Forest Green",
+    label: "Forest",
     mood: "Fresh & Natural",
     primary: "#10b981",
-    secondary: "#d1fae5",
-    surface: "#ecfdf5",
-    text: "#064e3b",
-    border: "#6ee7b7",
-    swatch: "linear-gradient(135deg, #10b981, #d1fae5)"
+    secondary: "#34d399",
+    accent: "#a3e635",
+    swatch: "linear-gradient(135deg, #10b981, #34d399, #a3e635)",
   },
   {
-    name: "Dark Star",
-    label: "Dark Star",
-    mood: "Night Owl",
-    primary: "#f472b6",
-    secondary: "#1e1b4b",
-    surface: "#111827",
-    text: "#f3f4f6",
-    border: "#334155",
-    swatch: "linear-gradient(135deg, #f472b6, #1e1b4b)"
+    id: "golden",
+    name: "Golden Hour",
+    label: "Golden",
+    mood: "Warm & Rich",
+    primary: "#eab308",
+    secondary: "#facc15",
+    accent: "#fb923c",
+    swatch: "linear-gradient(135deg, #eab308, #facc15, #fb923c)",
   },
   {
-    name: "Cream Rose",
-    label: "Cream Rose",
+    id: "midnight",
+    name: "Midnight Indigo",
+    label: "Midnight",
+    mood: "Deep & Cool",
+    primary: "#6366f1",
+    secondary: "#818cf8",
+    accent: "#c084fc",
+    swatch: "linear-gradient(135deg, #6366f1, #818cf8, #c084fc)",
+  },
+  {
+    id: "cherry",
+    name: "Cherry Blossom",
+    label: "Cherry",
     mood: "Delicate & Sweet",
-    primary: "#f43f5e",
-    secondary: "#ffe4e6",
-    surface: "#fff1f2",
-    text: "#881337",
-    border: "#fda4af",
-    swatch: "linear-gradient(135deg, #f43f5e, #ffe4e6)"
+    primary: "#e11d48",
+    secondary: "#fb7185",
+    accent: "#fda4af",
+    swatch: "linear-gradient(135deg, #e11d48, #fb7185, #fda4af)",
   },
   {
-    name: "Lavender Dream",
-    label: "Lavender Dream",
+    id: "mint",
+    name: "Mint Fresh",
+    label: "Mint",
+    mood: "Crisp & Clean",
+    primary: "#14b8a6",
+    secondary: "#2dd4bf",
+    accent: "#a7f3d0",
+    swatch: "linear-gradient(135deg, #14b8a6, #2dd4bf, #a7f3d0)",
+  },
+  {
+    id: "coral",
+    name: "Coral Reef",
+    label: "Coral",
+    mood: "Vibrant & Lively",
+    primary: "#f97316",
+    secondary: "#fdba74",
+    accent: "#fb923c",
+    swatch: "linear-gradient(135deg, #f97316, #fdba74, #fb923c)",
+  },
+  {
+    id: "lavender",
+    name: "Lavender Fields",
+    label: "Lavender",
     mood: "Calm & Dreamy",
     primary: "#8b5cf6",
-    secondary: "#e9d5ff",
-    surface: "#f5f3ff",
-    text: "#4c1d95",
-    border: "#c4b5fd",
-    swatch: "linear-gradient(135deg, #8b5cf6, #e9d5ff)"
-  }
+    secondary: "#a78bfa",
+    accent: "#c4b5fd",
+    swatch: "linear-gradient(135deg, #8b5cf6, #a78bfa, #c4b5fd)",
+  },
+  {
+    id: "peach",
+    name: "Peach Sunset",
+    label: "Peach",
+    mood: "Warm & Gentle",
+    primary: "#f472b6",
+    secondary: "#fbcfe8",
+    accent: "#fde68a",
+    swatch: "linear-gradient(135deg, #f472b6, #fbcfe8, #fde68a)",
+  },
 ];
 
-// Alias for ThemePicker (imports 'constellations')
-export const constellations = builtInThemes;
+// Backward compatibility aliases
+export const constellations = themes;
+export const builtInThemes = themes;
 
-export function getDefaultTheme(): Theme {
-  return builtInThemes[0];
+export function getThemeById(id: string): Theme {
+  return themes.find((t) => t.id === id) || themes[0];
 }

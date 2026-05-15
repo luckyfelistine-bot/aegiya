@@ -102,8 +102,7 @@ export default function ChatWindow({ onClose }: ChatWindowProps) {
   };
 
   const extractCodeBlocks = (content: string) => {
-    const regex = /```(\w+)?
-([\s\S]*?)```/g;
+    const regex = /```(\w+)?\n([\s\S]*?)```/g;
     const blocks: { language: string; code: string }[] = [];
     let match;
     while ((match = regex.exec(content)) !== null) {

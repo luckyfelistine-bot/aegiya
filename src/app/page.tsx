@@ -102,8 +102,8 @@ export default function HomePage() {
           {currentView === "chat" && <ChatWindow onClose={() => setCurrentView("universe")} />}
         </div>
 
-      {/* Dock – heart button + dropdown */}
-      <div className="fixed bottom-6 left-6 z-50">
+      {/* Dock – heart button + dropdown (moved to top-left) */}
+      <div className="fixed top-6 left-6 z-50">
         <button
           onClick={toggleDock}
           className="w-12 h-12 rounded-full bg-gradient-to-br from-[#8b5cf6] to-[#06b6d4] flex items-center justify-center shadow-lg hover:scale-105 transition-transform"
@@ -114,7 +114,7 @@ export default function HomePage() {
 
         {isDockOpen && (
           <div
-            className="absolute bottom-14 left-0 p-2 min-w-[180px] flex flex-col gap-2"
+            className="absolute top-14 left-0 p-2 min-w-[180px] flex flex-col gap-2"
             style={{
               background: "rgba(10, 10, 26, 0.9)",
               backdropFilter: "blur(16px)",
@@ -124,6 +124,7 @@ export default function HomePage() {
               animation: "fadeInUp 0.2s ease-out",
             }}
           >
+            {/* buttons as before */}
             <button
               onClick={() => navigateTo("universe")}
               className={`flex items-center gap-3 px-4 py-2 rounded-lg transition-all ${

@@ -67,12 +67,11 @@ const ARCS: ArcData[] = [
 ];
 
 const TEX = {
-  day: "https://upload.wikimedia.org/wikipedia/commons/c/cf/Solarsystemscope_texture_2k_earth_daymap.jpg",
-  night: "https://upload.wikimedia.org/wikipedia/commons/c/c4/Solarsystemscope_texture_2k_earth_nightmap.jpg",
-  cloud: "https://upload.wikimedia.org/wikipedia/commons/8/8d/Solarsystemscope_texture_2k_earth_clouds.jpg",
-  moon: "https://upload.wikimedia.org/wikipedia/commons/d/d6/Solarsystemscope_texture_2k_moon.jpg",
-  stars: "https://upload.wikimedia.org/wikipedia/commons/8/8d/Solarsystemscope_texture_2k_stars.jpg",
-  milkyway: "https://upload.wikimedia.org/wikipedia/commons/9/9a/Solarsystemscope_texture_2k_stars_milky_way.jpg",
+  day: "https://unpkg.com/three-globe/example/img/earth-blue-marble.jpg",
+  night: "https://unpkg.com/three-globe/example/img/earth-night.jpg",
+  cloud: "https://unpkg.com/three-globe/example/img/earth-clouds.png",
+  moon: "https://unpkg.com/three-globe/example/img/moon.jpg",
+  stars: "https://unpkg.com/three-globe/example/img/night-sky.png",
 };
 
 /* ─── UTILITIES ─── */
@@ -1054,7 +1053,10 @@ export default function Universe3D() {
               near: 0.1,
               far: 1000,
             }}
-            gl={{ antialias: true, alpha: false }}
+            gl={{ antialias: true, alpha: false, powerPreference: "high-performance" }}
+            onCreated={({ gl }) => {
+              gl.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+            }}
             dpr={[1, 2]}
           >
             <OrbitControls

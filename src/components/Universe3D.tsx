@@ -7,7 +7,6 @@ import * as THREE from "three";
 
 /* ═══════════════════════════════════════════════════════════════
    BYEOL UNIVERSE 3D v6.1 — For Dal 💕
-   Real textures. Real arcs. Real sky. Clean screen. Living world.
    ═══════════════════════════════════════════════════════════════ */
 
 /* ─── TYPES ─── */
@@ -59,7 +58,6 @@ const CITIES: CityData[] = [
   { name: "Jakarta", lat: -6.208763, lon: 106.845599, country: "Indonesia", flag: "🇮🇩" },
 ];
 
-/* Romantic arcs — Our Journey paths from Nairobi */
 const ARCS: ArcData[] = [
   { startLat: NAIROBI.lat, startLon: NAIROBI.lon, endLat: 51.507351, endLon: -0.127758, color: "#c084fc", label: "Our Journey to London" },
   { startLat: NAIROBI.lat, startLon: NAIROBI.lon, endLat: 48.856613, endLon: 2.352222, color: "#ff6b9d", label: "Our Journey to Paris" },
@@ -68,7 +66,6 @@ const ARCS: ArcData[] = [
   { startLat: NAIROBI.lat, startLon: NAIROBI.lon, endLat: 35.676192, endLon: 139.650311, color: "#f472b6", label: "Our Journey to Tokyo" },
 ];
 
-/* ─── TEXTURE URLs (Wikimedia Commons — Solar System Scope, CC-BY, NASA-based) ─── */
 const TEX = {
   day: "https://upload.wikimedia.org/wikipedia/commons/c/cf/Solarsystemscope_texture_2k_earth_daymap.jpg",
   night: "https://upload.wikimedia.org/wikipedia/commons/c/c4/Solarsystemscope_texture_2k_earth_nightmap.jpg",
@@ -492,7 +489,7 @@ function RippleRing({ position, color, onDone }: { position: THREE.Vector3; colo
   );
 }
 
-/* ─── CITY MARKERS with smart occlusion ─── */
+/* ─── CITY MARKERS ─── */
 function CityMarkers({ cities, zoomLevel, settings }: { cities: CityData[]; zoomLevel: number; settings: Settings }) {
   const config = ZOOM_LEVELS[zoomLevel];
   if (!config.showCities) return null;
@@ -723,7 +720,7 @@ function ParkCircle({ position, target }: { position: THREE.Vector3; target: THR
   );
 }
 
-/* ─── EMOJI PEOPLE — using THREE.Sprite (always faces camera) ─── */
+/* ─── EMOJI PEOPLE ─── */
 function EmojiPeople({ zoomLevel }: { zoomLevel: number }) {
   const config = ZOOM_LEVELS[zoomLevel];
   if (!config.showNairobi) return null;
@@ -790,7 +787,7 @@ function EmojiPeople({ zoomLevel }: { zoomLevel: number }) {
   );
 }
 
-/* ─── SHOOTING STARS with trails ─── */
+/* ─── SHOOTING STARS ─── */
 function ShootingStars({ birthdayMode }: { birthdayMode: boolean }) {
   const groupRef = useRef<<THREE.Group>(null);
   const starsRef = useRef<{ mesh: THREE.Mesh; velocity: THREE.Vector3; life: number; maxLife: number }[]>([]);
@@ -867,7 +864,6 @@ function UniverseScene({
   ripples: { id: number; position: THREE.Vector3; color: string }[];
   onRippleDone: (id: number) => void;
 }) {
-  // Textures — loaded INSIDE Canvas
   const dayTex = useTexture(TEX.day);
   const nightTex = useTexture(TEX.night);
   const cloudTex = useTexture(TEX.cloud);
@@ -880,11 +876,9 @@ function UniverseScene({
     cloud: cloudTex,
   }), [dayTex, nightTex, cloudTex]);
 
-  // Sun direction
   const sunDir = useMemo(() => getSunDirection(kenyaTime), [kenyaTime]);
   const moonPos = useMemo(() => getMoonPosition(kenyaTime), [kenyaTime]);
 
-  // Earth rotation
   const rotationOffset = useMemo(() => {
     const jd = kenyaTime.getTime() / 86400000.0 + 2440587.5;
     const n = jd - 2451545.0;
@@ -892,7 +886,6 @@ function UniverseScene({
     return ((earthRotation - 37) % 360) / 360;
   }, [kenyaTime]);
 
-  // Birthday mode
   const birthdayMode = useMemo(() => {
     const k = kenyaTime;
     return k.getMonth() === 5 && k.getDate() === 1;
@@ -914,12 +907,10 @@ function UniverseScene({
       <MoonMesh position={moonPos} texture={moonTex} />
       <SunMesh direction={sunDir} />
 
-      {/* Arcs */}
       {config.showArcs && ARCS.map((arc, i) => (
         <ArcLine key={i} arc={arc} settings={settings} />
       ))}
 
-      {/* Ripples */}
       {ripples.map((ripple) => (
         <RippleRing
           key={ripple.id}
@@ -961,18 +952,15 @@ export default function Universe3D() {
   const controlsRef = useRef<any>(null);
   const returnTimerRef = useRef<<ReturnType<<typeof setTimeout> | null>(null);
 
-  // CRITICAL FIX: Only render Canvas after client mount
   useEffect(() => {
     setIsClient(true);
   }, []);
 
-  // Kenya time
   useEffect(() => {
     const interval = setInterval(() => setKenyaTime(getKenyaTime()), 1000);
     return () => clearInterval(interval);
   }, []);
 
-  // Sun/moon info
   const sunInfo = useMemo(() => {
     const { altitude, azimuth } = getSunAltitudeAzimuth(kenyaTime, NAIROBI.lat, NAIROBI.lon);
     let status = "Night";
@@ -984,18 +972,15 @@ export default function Universe3D() {
 
   const moonInfo = useMemo(() => getMoonPhaseInfo(kenyaTime), [kenyaTime]);
 
-  // Birthday mode
   const birthdayMode = useMemo(() => {
     const k = kenyaTime;
     return k.getMonth() === 5 && k.getDate() === 1;
   }, [kenyaTime]);
 
-  // Zoom
   const handleZoom = useCallback((delta: number) => {
     setZoomLevel((prev) => Math.max(0, Math.min(3, prev + delta)));
   }, []);
 
-  // Ripple management
   const handleAddRipple = useCallback((position: THREE.Vector3) => {
     const id = Date.now() + Math.random();
     setRipples((prev) => [...prev, { id, position, color: "#c084fc" }]);
@@ -1005,7 +990,6 @@ export default function Universe3D() {
     setRipples((prev) => prev.filter((r) => r.id !== id));
   }, []);
 
-  // Auto-return
   useEffect(() => {
     if (!settings.autoReturn) return;
     const controls = controlsRef.current;
@@ -1051,7 +1035,6 @@ export default function Universe3D() {
 
   const config = ZOOM_LEVELS[zoomLevel];
 
-  // If not yet client-side, show the loading fallback (no Canvas, no R3F hooks)
   if (!isClient) {
     return (
       <div className="universe-view" style={{ width: "100vw", height: "100vh", background: "#050510" }}>
@@ -1062,7 +1045,6 @@ export default function Universe3D() {
 
   return (
     <div className="universe-view">
-      {/* 3D Canvas */}
       <div className="universe-canvas-container" style={{ width: "100%", height: "100%" }}>
         <Suspense fallback={<LoadingFallback />}>
           <Canvas
@@ -1100,7 +1082,6 @@ export default function Universe3D() {
         </Suspense>
       </div>
 
-      {/* ─── CLEAN HEADER ─── */}
       <div className="universe-header" style={{ position: "absolute", top: 16, left: 16, zIndex: 10, minWidth: "auto", padding: "12px 18px", background: "rgba(8,8,22,0.6)", backdropFilter: "blur(12px)", borderRadius: 16, border: "1px solid rgba(255,255,255,0.08)" }}>
         <div style={{ fontSize: "1.3rem", fontWeight: 700, fontFamily: "JetBrains Mono, monospace", color: "white", letterSpacing: "-0.02em" }}>
           {formatKenyaTime(kenyaTime)}
@@ -1133,7 +1114,6 @@ export default function Universe3D() {
         )}
       </div>
 
-      {/* ─── SETTINGS DROPDOWN ─── */}
       <div className="universe-controls" style={{ position: "absolute", top: 16, right: 16, zIndex: 10 }}>
         <div style={{ position: "relative" }}>
           <button
@@ -1213,7 +1193,6 @@ export default function Universe3D() {
         </div>
       </div>
 
-      {/* ─── BOTTOM ZOOM CONTROLS ─── */}
       <div className="universe-actions" style={{ position: "absolute", bottom: 24, left: "50%", transform: "translateX(-50%)", zIndex: 10, display: "flex", gap: 12, alignItems: "center" }}>
         <div style={{ display: "flex", alignItems: "center", gap: 10, background: "rgba(0,0,0,0.5)", backdropFilter: "blur(12px)", border: "1px solid rgba(255,255,255,0.08)", borderRadius: 24, padding: "6px 14px" }}>
           <button

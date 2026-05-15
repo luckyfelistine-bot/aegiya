@@ -1494,7 +1494,7 @@ export default function Universe3D() {
             near: 0.1,
             far: 1000,
           }}
-          gl={{ antialias: true, alpha: false, pixelRatio: Math.min(window.devicePixelRatio, 2) }}
+          gl={{ antialias: true, alpha: false }} dpr={[1, 2]}
         >
           <OrbitControls
             ref={controlsRef}

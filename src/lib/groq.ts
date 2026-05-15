@@ -14,6 +14,26 @@ export const GROQ_MODELS = {
 
 export const CHAT_MODEL = GROQ_MODELS.DEFAULT;
 
+// ✅ Added missing chatCompletion export
+export async function chatCompletion({
+  messages,
+  model = GROQ_MODELS.DEFAULT,
+  temperature = 0.7,
+  maxTokens = 4096,
+}: {
+  messages: { role: "system" | "user" | "assistant"; content: string }[];
+  model?: string;
+  temperature?: number;
+  maxTokens?: number;
+}) {
+  return groq.chat.completions.create({
+    model,
+    messages,
+    temperature,
+    max_tokens: maxTokens,
+  });
+}
+
 export async function streamChat(messages: any[], model = GROQ_MODELS.DEFAULT) {
   return groq.chat.completions.create({
     model,

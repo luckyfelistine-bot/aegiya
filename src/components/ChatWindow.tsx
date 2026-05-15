@@ -4,7 +4,6 @@ import { useState, useRef, useEffect, useCallback } from "react";
 import { SendIcon, PaperclipIcon, XIcon, CopyIcon, PlayIcon, LoaderIcon } from "./SvgIcons";
 import VoiceButton from "./VoiceButton";
 import FileUploader, { UploadedFile } from "./FileUploader";
-import { chatCompletion, CHAT_MODEL, type GroqModel } from "@/lib/groq";
 import { buildSystemPrompt } from "@/lib/systemPrompt";
 import { speak } from "@/utils/speech";
 
@@ -29,7 +28,7 @@ export default function ChatWindow({ onClose }: ChatWindowProps) {
   ]);
   const [input, setInput] = useState("");
   const [isLoading, setIsLoading] = useState(false);
-  const [model, setModel] = useState<GroqModel>(CHAT_MODEL);
+  const [model, setModel] = useState<string>("llama-3.3-70b-versatile");
   const [attachments, setAttachments] = useState<UploadedFile[]>([]);
   const [showUploader, setShowUploader] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
@@ -58,13 +57,26 @@ export default function ChatWindow({ onClose }: ChatWindowProps) {
     try {
       const systemPrompt = buildSystemPrompt();
       const apiMessages = [
-        { role: "system" as const, content: systemPrompt },
-        ...messages.map((m) => ({ role: m.role as "user" | "assistant", content: m.content })),
-        { role: "user" as const, content: userMsg.content },
+        { role: "system", content: systemPrompt },
+        ...messages.map((m) => ({ role: m.role, content: m.content })),
+        { role: "user", content: userMsg.content },
       ];
 
-      const response = await chatCompletion({ messages: apiMessages, model });
-      const content = response.choices[0]?.message?.content || "I'm sorry, I couldn't process that.";
+      const response = await fetch("/api/chat", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          messages: apiMessages,
+          model: model,
+        }),
+      });
+
+      if (!response.ok) {
+        throw new Error(`API error: ${response.status}`);
+      }
+
+      const data = await response.json();
+      const content = data.content || "I'm sorry, I couldn't process that.";
 
       const assistantMsg: Message = {
         role: "assistant",
@@ -195,7 +207,7 @@ export default function ChatWindow({ onClose }: ChatWindowProps) {
         <div style={{ display: "flex", gap: 10, alignItems: "center" }}>
           <select
             value={model}
-            onChange={(e) => setModel(e.target.value as GroqModel)}
+            onChange={(e) => setModel(e.target.value)}
             style={{
               padding: "5px 10px",
               background: "var(--glass)",

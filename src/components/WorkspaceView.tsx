@@ -50,7 +50,7 @@ export default function WorkspaceView({ showToast, onClose }: WorkspaceViewProps
     const loadCode = async () => {
       try {
         const saved = await memory.getProfile("last_code");
-        if (saved) setCode(saved);
+        if (saved && typeof saved === "string") setCode(saved);
       } catch (e) { console.error(e); }
     };
     loadCode();

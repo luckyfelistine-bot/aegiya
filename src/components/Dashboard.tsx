@@ -17,8 +17,8 @@ export default function Dashboard({ onNavigate, onOpenLesson }: DashboardProps) 
   useEffect(() => {
     memory.getDashboardPrefs().then(setPrefs);
     memory.getProjects().then((p) => setStats((s) => ({ ...s, projects: p.length })));
-    memory.getProfile<number>("lessonsCompleted").then((n) => setStats((s) => ({ ...s, sessions: n || 0 })));
-    memory.getProfile<number>("streak").then((n) => setStats((s) => ({ ...s, streak: n || 0 })));
+    memory.getProfile("lessonsCompleted").then((n) => setStats((s) => ({ ...s, sessions: (n as number) || 0 })));
+    memory.getProfile("streak").then((n) => setStats((s) => ({ ...s, streak: (n as number) || 0 })));
     memory.getFiles().then((f) => setStats((s) => ({ ...s, files: f.length })));
   }, []);
 

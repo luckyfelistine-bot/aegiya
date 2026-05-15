@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useRef, useMemo, useCallback, Suspense } from "react";
-import { Canvas, useFrame, useThree } from "@react-three/fiber";
+import { Canvas, useFrame } from "@react-three/fiber";
 import { OrbitControls, Html, useTexture } from "@react-three/drei";
 import * as THREE from "three";
 
@@ -260,8 +260,8 @@ function EarthMesh({
   settings: Settings;
   rotationOffset: number;
 }) {
-  const meshRef = useRef<<THREE.Mesh>(null);
-  const materialRef = useRef<<THREE.ShaderMaterial>(null);
+  const meshRef = useRef<THREE.Mesh>(null);
+  const materialRef = useRef<THREE.ShaderMaterial>(null);
 
   const uniforms = useMemo(
     () => ({
@@ -309,7 +309,7 @@ function EarthMesh({
 }
 
 function AtmosphereMesh({ sunDirection, settings }: { sunDirection: THREE.Vector3; settings: Settings }) {
-  const materialRef = useRef<<THREE.ShaderMaterial>(null);
+  const materialRef = useRef<THREE.ShaderMaterial>(null);
   const uniforms = useMemo(
     () => ({
       sunDirection: { value: sunDirection },
@@ -340,7 +340,7 @@ function AtmosphereMesh({ sunDirection, settings }: { sunDirection: THREE.Vector
 }
 
 function CloudMesh({ texture, settings }: { texture?: THREE.Texture; settings: Settings }) {
-  const meshRef = useRef<<THREE.Mesh>(null);
+  const meshRef = useRef<THREE.Mesh>(null);
 
   useFrame((state) => {
     if (meshRef.current) {
@@ -359,7 +359,7 @@ function CloudMesh({ texture, settings }: { texture?: THREE.Texture; settings: S
 }
 
 function MoonMesh({ position, texture }: { position: THREE.Vector3; texture?: THREE.Texture }) {
-  const meshRef = useRef<<THREE.Mesh>(null);
+  const meshRef = useRef<THREE.Mesh>(null);
 
   useFrame((state) => {
     if (meshRef.current) {
@@ -406,7 +406,7 @@ function SunMesh({ direction }: { direction: THREE.Vector3 }) {
 }
 
 function StarBackground({ texture }: { texture?: THREE.Texture }) {
-  const meshRef = useRef<<THREE.Mesh>(null);
+  const meshRef = useRef<THREE.Mesh>(null);
 
   useFrame((state) => {
     if (meshRef.current) {
@@ -426,7 +426,7 @@ function StarBackground({ texture }: { texture?: THREE.Texture }) {
 
 /* ─── ARCS — Our Journey curved paths ─── */
 function ArcLine({ arc, settings }: { arc: ArcData; settings: Settings }) {
-  const materialRef = useRef<<THREE.MeshBasicMaterial>(null);
+  const materialRef = useRef<THREE.MeshBasicMaterial>(null);
 
   const geometry = useMemo(() => {
     const start = latLonToVector3(arc.startLat, arc.startLon, EARTH_RADIUS + 0.05);
@@ -462,8 +462,8 @@ function ArcLine({ arc, settings }: { arc: ArcData; settings: Settings }) {
 
 /* ─── RIPPLE RING ─── */
 function RippleRing({ position, color, onDone }: { position: THREE.Vector3; color: string; onDone: () => void }) {
-  const meshRef = useRef<<THREE.Mesh>(null);
-  const materialRef = useRef<<THREE.MeshBasicMaterial>(null);
+  const meshRef = useRef<THREE.Mesh>(null);
+  const materialRef = useRef<THREE.MeshBasicMaterial>(null);
   const startTime = useRef(Date.now());
 
   useFrame(() => {
@@ -638,7 +638,7 @@ function NairobiScene({ zoomLevel }: { zoomLevel: number }) {
   const buildingCount = 120;
   const buildingGeo = useMemo(() => new THREE.BoxGeometry(1, 1, 1), []);
   const buildingMat = useMemo(() => new THREE.MeshStandardMaterial({ roughness: 0.8 }), []);
-  const meshRef = useRef<<THREE.InstancedMesh>(null);
+  const meshRef = useRef<THREE.InstancedMesh>(null);
 
   useEffect(() => {
     if (!meshRef.current) return;
@@ -708,7 +708,7 @@ function NairobiScene({ zoomLevel }: { zoomLevel: number }) {
 }
 
 function ParkCircle({ position, target }: { position: THREE.Vector3; target: THREE.Vector3 }) {
-  const ref = useRef<<THREE.Mesh>(null);
+  const ref = useRef<THREE.Mesh>(null);
   useEffect(() => {
     if (ref.current) ref.current.lookAt(target);
   }, [target]);
@@ -754,7 +754,7 @@ function EmojiPeople({ zoomLevel }: { zoomLevel: number }) {
     });
   }, [people]);
 
-  const groupRef = useRef<<THREE.Group>(null);
+  const groupRef = useRef<THREE.Group>(null);
 
   useFrame((state) => {
     if (!groupRef.current) return;
@@ -789,7 +789,7 @@ function EmojiPeople({ zoomLevel }: { zoomLevel: number }) {
 
 /* ─── SHOOTING STARS ─── */
 function ShootingStars({ birthdayMode }: { birthdayMode: boolean }) {
-  const groupRef = useRef<<THREE.Group>(null);
+  const groupRef = useRef<THREE.Group>(null);
   const starsRef = useRef<{ mesh: THREE.Mesh; velocity: THREE.Vector3; life: number; maxLife: number }[]>([]);
 
   const spawnStar = useCallback(() => {
@@ -935,7 +935,7 @@ export default function Universe3D() {
   const [isClient, setIsClient] = useState(false);
   const [kenyaTime, setKenyaTime] = useState<Date>(getKenyaTime());
   const [zoomLevel, setZoomLevel] = useState(1);
-  const [settings, setSettings] = useState<<Settings>({
+  const [settings, setSettings] = useState<Settings>({
     dayNightShader: true,
     cityLights: true,
     clouds: true,
@@ -950,7 +950,7 @@ export default function Universe3D() {
   const [ripples, setRipples] = useState<{ id: number; position: THREE.Vector3; color: string }[]>([]);
   const [isInteracting, setIsInteracting] = useState(false);
   const controlsRef = useRef<any>(null);
-  const returnTimerRef = useRef<<ReturnType<<typeof setTimeout> | null>(null);
+  const returnTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
     setIsClient(true);

@@ -67,12 +67,13 @@ const ARCS: ArcData[] = [
 ];
 
 const TEX = {
-  day:   "https://s3-us-west-2.amazonaws.com/s.cdpn.io/122460/earth_map_2048x1024.jpg",
-  night: "https://s3-us-west-2.amazonaws.com/s.cdpn.io/122460/earth_map_1024x512.jpg",
-  cloud: "https://s3-us-west-2.amazonaws.com/s.cdpn.io/122460/earth_clouds_2048x1024.jpg",
-  moon:  "https://cdn.jsdelivr.net/gh/vasturiano/three-globe@2.45.2/example/img/moon.jpg",
-  stars: "https://cdn.jsdelivr.net/gh/vasturiano/three-globe@2.45.2/example/img/night-sky.png",
+  day:   "/textures/earth-day.png",     // or whatever you named it
+  night: "/textures/earth-night.png",
+  cloud: "/textures/earth-clouds.png",
+  moon:  "/textures/moon.png",
+  stars: "/textures/stars.png",
 };
+
 
 
 

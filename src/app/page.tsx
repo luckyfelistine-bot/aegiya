@@ -71,7 +71,7 @@ export default function Home() {
   const { toasts, showToast, removeToast } = useToast();
 
   useEffect(() => {
-    memory.getProfile<string>("onboarded").then((val) => {
+    memory.getProfile("onboarded").then((val) => {
       if (!val) setShowOnboarding(true);
     });
   }, []);

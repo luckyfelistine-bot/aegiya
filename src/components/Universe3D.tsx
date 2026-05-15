@@ -1212,10 +1212,17 @@ function SceneBackground({ sunAltitude }: { sunAltitude: number }) {
   const dayColor = useMemo(() => new THREE.Color("#0a1a2e"), []);
   const nightColor = useMemo(() => new THREE.Color("#030308"), []);
 
+  useEffect(() => {
+    if (!scene.background) {
+      scene.background = new THREE.Color("#030308");
+    }
+  }, [scene]);
+
   useFrame(() => {
+    if (!scene.background) return;
     const target = sunAltitude > -5 ? dayColor : nightColor;
-    scene.background.lerp(target, 0.02);
-    scene.fog = new THREE.FogExp2(scene.background, 0.015);
+    (scene.background as THREE.Color).lerp(target, 0.02);
+    scene.fog = new THREE.FogExp2(scene.background as THREE.Color, 0.015);
   });
 
   return null;

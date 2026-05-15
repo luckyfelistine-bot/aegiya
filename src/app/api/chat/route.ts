@@ -1,10 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
-import Groq from "groq-sdk";
-
-// Server-side Groq client (safe)
-const groq = new Groq({
-  apiKey: process.env.GROQ_API_KEY || "",
-});
+import { chatCompletion, CHAT_MODEL } from "@/lib/groq";
+import { buildSystemPrompt } from "@/lib/systemPrompt";
 
 export const runtime = "edge";
 export const maxDuration = 30;
@@ -20,40 +16,22 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const stream = await groq.chat.completions.create({
+    const systemPrompt = buildSystemPrompt();
+    const apiMessages = [
+      { role: "system", content: systemPrompt },
+      ...messages,
+    ];
+
+    const response = await chatCompletion({
+      messages: apiMessages,
       model,
-      messages,
       temperature: 0.7,
-      max_tokens: 4096,
-      stream: true,
+      maxTokens: 4096,
     });
 
-    const encoder = new TextEncoder();
-    const readableStream = new ReadableStream({
-      async start(controller) {
-        try {
-          for await (const chunk of stream) {
-            const content = chunk.choices[0]?.delta?.content || "";
-            if (content) {
-              const data = `data: ${JSON.stringify({ content })}\n\n`;
-              controller.enqueue(encoder.encode(data));
-            }
-          }
-          controller.enqueue(encoder.encode("data: [DONE]\n\n"));
-          controller.close();
-        } catch (err) {
-          controller.error(err);
-        }
-      },
-    });
+    const content = response.choices[0]?.message?.content || "I'm sorry, I couldn't process that.";
 
-    return new Response(readableStream, {
-      headers: {
-        "Content-Type": "text/event-stream",
-        "Cache-Control": "no-cache",
-        Connection: "keep-alive",
-      },
-    });
+    return NextResponse.json({ content });
   } catch (error: any) {
     console.error("Chat API error:", error);
     return NextResponse.json(

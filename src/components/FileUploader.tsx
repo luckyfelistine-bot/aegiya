@@ -1,93 +1,117 @@
 "use client";
-import { useRef, useState } from "react";
 
-const ALLOWED_TYPES = [
-  'text/plain','text/markdown','text/html','text/css','text/x-scss','text/x-sass',
-  'text/less','application/javascript','application/typescript','text/jsx','text/tsx',
-  'text/x-python','application/json','text/csv','text/tab-separated-values',
-  'application/xml','text/x-yaml','application/sql','application/x-sh','text/x-c',
-  'text/x-c++','text/x-java','text/x-go','text/x-rust','text/x-ruby','application/x-php',
-  'text/x-lua','text/x-r','text/x-swift','text/x-kotlin','text/x-dart','text/x-csharp',
-  'text/x-vue','text/x-svelte','application/pdf',
-  'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
-  'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-  'application/vnd.ms-excel',
-];
+import { useState, useCallback } from "react";
+import { PaperclipIcon, FileIcon, XIcon } from "./SvgIcons";
 
-const ALLOWED_EXTS = [
-  'txt','md','html','htm','css','scss','sass','less','js','ts','jsx','tsx','py',
-  'json','csv','tsv','xml','yaml','yml','sql','sh','bash','c','cpp','h','hpp','java',
-  'go','rs','rb','php','lua','r','swift','kt','dart','cs','vue','svelte','pdf',
-  'docx','xlsx','xls',
-];
+export interface UploadedFile {
+  name: string;
+  type: string;
+  size: number;
+  content?: string;
+}
 
-export default function FileUploader() {
-  const fileInputRef = useRef<HTMLInputElement>(null);
+interface FileUploaderProps {
+  onFilesSelected: (files: UploadedFile[]) => void;
+  attachments: UploadedFile[];
+  onRemove: (index: number) => void;
+}
+
+export default function FileUploader({ onFilesSelected, attachments, onRemove }: FileUploaderProps) {
   const [dragOver, setDragOver] = useState(false);
 
-  const processFile = async (file: File) => {
-    const ext = file.name.split('.').pop()?.toLowerCase() || '';
-    const isAllowed = ALLOWED_EXTS.includes(ext) || ALLOWED_TYPES.includes(file.type);
+  const handleDrop = useCallback(
+    (e: React.DragEvent) => {
+      e.preventDefault();
+      setDragOver(false);
+      const files = Array.from(e.dataTransfer.files);
+      processFiles(files);
+    },
+    []
+  );
 
-    if (!isAllowed) {
-      alert(`Unsupported file type: .${ext}`);
-      return;
-    }
+  const handleInput = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = Array.from(e.target.files || []);
+    processFiles(files);
+    e.target.value = "";
+  }, []);
 
-    const formData = new FormData();
-    formData.append('file', file);
+  const processFiles = (files: File[]) => {
+    const processed: UploadedFile[] = [];
+    let pending = files.length;
 
-    try {
-      const res = await fetch('/api/process-file', { method: 'POST', body: formData });
-      const data = await res.json();
-      if (data.error) {
-        alert(`Upload error: ${data.error}`);
-        return;
+    files.forEach((file) => {
+      const reader = new FileReader();
+      reader.onload = () => {
+        processed.push({
+          name: file.name,
+          type: file.type,
+          size: file.size,
+          content: reader.result as string,
+        });
+        pending--;
+        if (pending === 0) onFilesSelected(processed);
+      };
+      reader.onerror = () => {
+        pending--;
+        if (pending === 0 && processed.length > 0) onFilesSelected(processed);
+      };
+      if (file.type.startsWith("text/") || file.name.endsWith(".md") || file.name.endsWith(".json") || file.name.endsWith(".js") || file.name.endsWith(".ts") || file.name.endsWith(".tsx") || file.name.endsWith(".css") || file.name.endsWith(".html")) {
+        reader.readAsText(file);
+      } else {
+        reader.readAsDataURL(file);
       }
-      console.log('File processed:', data);
-      window.dispatchEvent(new CustomEvent('byeol:fileProcessed', { detail: data }));
-    } catch (err) {
-      console.error('Upload failed:', err);
-      alert('Failed to upload file.');
-    }
-  };
-
-  const handleFile = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    await processFile(file);
-    e.target.value = '';
-  };
-
-  const handleDrop = async (e: React.DragEvent) => {
-    e.preventDefault();
-    setDragOver(false);
-    const file = e.dataTransfer.files?.[0];
-    if (!file) return;
-    await processFile(file);
+    });
   };
 
   return (
-    <div
-      onDragOver={(e) => { e.preventDefault(); setDragOver(true); }}
-      onDragLeave={() => setDragOver(false)}
-      onDrop={handleDrop}
-      className={`relative inline-block ${dragOver ? 'scale-110' : ''} transition-transform`}
-    >
-      <button
-        onClick={() => fileInputRef.current?.click()}
-        className="p-2 rounded-full bg-[var(--primary)] text-white hover:opacity-90 transition"
-        title="Upload a file (click or drop)"
+    <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+      <label
+        className={`file-uploader ${dragOver ? "dragover" : ""}`}
+        onDragOver={(e) => { e.preventDefault(); setDragOver(true); }}
+        onDragLeave={() => setDragOver(false)}
+        onDrop={handleDrop}
       >
-        📎
-      </button>
-      <input
-        ref={fileInputRef}
-        type="file"
-        className="hidden"
-        accept={ALLOWED_EXTS.map(e => `.${e}`).join(',')}
-        onChange={handleFile}
-      />
+        <PaperclipIcon size={24} style={{ marginBottom: 8, opacity: 0.5 }} />
+        <p style={{ fontSize: "0.85rem", marginBottom: 4 }}>Drop files here or click to upload</p>
+        <p style={{ fontSize: "0.7rem", opacity: 0.4 }}>Supports: .txt, .md, .js, .ts, .html, .css, images</p>
+        <input
+          type="file"
+          multiple
+          onChange={handleInput}
+          style={{ display: "none" }}
+          accept=".txt,.md,.json,.js,.ts,.tsx,.css,.html,.pdf,.doc,.docx,.png,.jpg,.jpeg"
+        />
+      </label>
+      {attachments.length > 0 && (
+        <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
+          {attachments.map((att, i) => (
+            <div
+              key={i}
+              style={{
+                display: "flex",
+                alignItems: "center",
+                gap: 6,
+                padding: "5px 12px",
+                background: "var(--glass)",
+                border: "1px solid var(--glass-border)",
+                borderRadius: "var(--radius-sm)",
+                fontSize: "0.78rem",
+              }}
+            >
+              <FileIcon size={12} />
+              <span style={{ maxWidth: 140, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                {att.name}
+              </span>
+              <button
+                onClick={() => onRemove(i)}
+                style={{ background: "none", border: "none", color: "var(--lunar)", cursor: "pointer", padding: 2 }}
+              >
+                <XIcon size={12} />
+              </button>
+            </div>
+          ))}
+        </div>
+      )}
     </div>
   );
 }

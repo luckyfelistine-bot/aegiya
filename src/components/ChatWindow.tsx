@@ -1,360 +1,275 @@
 "use client";
 
-import React, { useState, useRef, useEffect, useCallback } from "react";
-import { motion, AnimatePresence } from "framer-motion";
-import { GROQ_MODELS } from "@/lib/groq";
-import { memory } from "@/lib/memory";
-import { SYSTEM_PROMPT } from "@/lib/systemPrompt";
-import {
-  SendIcon,
-  XIcon,
-  PaperclipIcon,
-  SparklesIcon,
-  CodeIcon,
-  FileIcon,
-  CheckIcon,
-} from "@/components/SvgIcons";
+import { useState, useRef, useEffect, useCallback } from "react";
+import { SendIcon, PaperclipIcon, XIcon, CopyIcon, PlayIcon, LoaderIcon } from "./SvgIcons";
+import VoiceButton from "./VoiceButton";
+import FileUploader, { UploadedFile } from "./FileUploader";
+import { chatCompletion, CHAT_MODEL, type GroqModel } from "@/lib/groq";
+import { buildSystemPrompt } from "@/lib/systemPrompt";
+import { speak } from "@/utils/speech";
 
 interface Message {
-  id: string;
-  role: "user" | "assistant" | "system";
+  role: "user" | "assistant";
   content: string;
   timestamp: number;
-  attachments?: Attachment[];
-  toolCalls?: ToolCall[];
-  isStreaming?: boolean;
-}
-
-interface Attachment {
-  name: string;
-  type: string;
-  content: string;
-}
-
-interface ToolCall {
-  id: string;
-  name: string;
-  params: any;
-  status: "pending" | "running" | "completed" | "error";
-  result?: any;
+  attachments?: UploadedFile[];
 }
 
 interface ChatWindowProps {
-  onClose: () => void;
-  onToolCall?: (tool: string, params: any) => Promise<any>;
+  onClose?: () => void;
 }
 
-export function ChatWindow({ onClose, onToolCall }: ChatWindowProps) {
-  const [messages, setMessages] = useState<Message[]>([]);
+export default function ChatWindow({ onClose }: ChatWindowProps) {
+  const [messages, setMessages] = useState<Message[]>([
+    {
+      role: "assistant",
+      content: "Hi Dal! ✨ I'm Byeol, your cosmic companion. How can I help you today?",
+      timestamp: Date.now(),
+    },
+  ]);
   const [input, setInput] = useState("");
   const [isLoading, setIsLoading] = useState(false);
-  const [model, setModel] = useState<string>(GROQ_MODELS.DEFAULT);
-  const [showModelPicker, setShowModelPicker] = useState(false);
-  const [attachments, setAttachments] = useState<Attachment[]>([]);
+  const [model, setModel] = useState<GroqModel>(CHAT_MODEL);
+  const [attachments, setAttachments] = useState<UploadedFile[]>([]);
+  const [showUploader, setShowUploader] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
-  const inputRef = useRef<HTMLTextAreaElement>(null);
-  const fileInputRef = useRef<HTMLInputElement>(null);
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
 
-  // Load messages
-  useEffect(() => {
-    const load = async () => {
-      try {
-        const saved = await memory.getMessages(50);
-        if (saved.length > 0) {
-          setMessages(saved);
-        } else {
-          setMessages([
-            {
-              id: "welcome",
-              role: "assistant",
-              content: "Hey Dal! I'm Byeol, your companion in this universe. I can code with you, plan our future, or just chat. What would you like to do?",
-              timestamp: Date.now(),
-            },
-          ]);
-        }
-      } catch (e) {
-        console.error("Failed to load messages:", e);
-      }
-    };
-    load();
-  }, []);
-
-  // Auto-scroll
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, [messages]);
+  }, [messages.length, isLoading]);
 
-  // Auto-resize textarea
-  useEffect(() => {
-    const el = inputRef.current;
-    if (el) {
-      el.style.height = "auto";
-      el.style.height = `${el.scrollHeight}px`;
-    }
-  }, [input]);
-
-  const generateId = () => `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
-
-  const sendMessage = async (text: string, fileAttachments: Attachment[] = []) => {
-    if ((!text.trim() && fileAttachments.length === 0) || isLoading) return;
+  const handleSend = useCallback(async () => {
+    if (!input.trim() && attachments.length === 0) return;
 
     const userMsg: Message = {
-      id: generateId(),
       role: "user",
-      content: text,
+      content: input.trim(),
       timestamp: Date.now(),
-      attachments: fileAttachments.length ? fileAttachments : undefined,
+      attachments: attachments.length > 0 ? [...attachments] : undefined,
     };
 
-    setMessages(prev => [...prev, userMsg]);
+    setMessages((prev) => [...prev, userMsg]);
     setInput("");
     setAttachments([]);
+    setShowUploader(false);
     setIsLoading(true);
 
-    await memory.saveMessage(userMsg);
-
-    const apiMessages = [...messages, userMsg].slice(-20).map(m => ({
-      role: m.role,
-      content: m.content + (m.attachments ? `\n\n[Attachments: ${m.attachments.map(a => a.name).join(", ")}]` : ""),
-    }));
-
-    const finalMessages = [
-      { role: "system", content: SYSTEM_PROMPT },
-      ...apiMessages,
-    ];
-
-    const assistantId = generateId();
-    setMessages(prev => [...prev, {
-      id: assistantId,
-      role: "assistant",
-      content: "",
-      timestamp: Date.now(),
-      isStreaming: true,
-    }]);
-
     try {
-      const response = await fetch("/api/chat", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ messages: finalMessages, model }),
-      });
+      const systemPrompt = buildSystemPrompt();
+      const apiMessages = [
+        { role: "system" as const, content: systemPrompt },
+        ...messages.map((m) => ({ role: m.role as "user" | "assistant", content: m.content })),
+        { role: "user" as const, content: userMsg.content },
+      ];
 
-      if (!response.ok) throw new Error(`API error: ${response.status}`);
+      const response = await chatCompletion({ messages: apiMessages, model });
+      const content = response.choices[0]?.message?.content || "I'm sorry, I couldn't process that.";
 
-      const reader = response.body?.getReader();
-      if (!reader) throw new Error("No response body");
-
-      const decoder = new TextDecoder();
-      let fullContent = "";
-
-      while (true) {
-        const { done, value } = await reader.read();
-        if (done) break;
-
-        const chunk = decoder.decode(value);
-        const lines = chunk.split("\n");
-        for (const line of lines) {
-          if (line.startsWith("data: ")) {
-            const data = line.slice(6);
-            if (data === "[DONE]") continue;
-            try {
-              const parsed = JSON.parse(data);
-              const content = parsed.content || "";
-              if (content) {
-                fullContent += content;
-                setMessages(prev =>
-                  prev.map(msg =>
-                    msg.id === assistantId
-                      ? { ...msg, content: fullContent, isStreaming: true }
-                      : msg
-                  )
-                );
-              }
-            } catch {
-              // ignore malformed JSON
-            }
-          }
-        }
-      }
-
-      setMessages(prev =>
-        prev.map(msg =>
-          msg.id === assistantId
-            ? { ...msg, content: fullContent, isStreaming: false }
-            : msg
-        )
-      );
-
-      await memory.saveMessage({
-        id: assistantId,
+      const assistantMsg: Message = {
         role: "assistant",
-        content: fullContent,
+        content,
         timestamp: Date.now(),
-      });
-    } catch (error) {
-      console.error("Chat error:", error);
-      setMessages(prev =>
-        prev.map(msg =>
-          msg.id === assistantId
-            ? { ...msg, content: "I hit a cosmic disturbance. Let me try again — what were we working on?", isStreaming: false }
-            : msg
-        )
-      );
+      };
+
+      setMessages((prev) => [...prev, assistantMsg]);
+      speak(content.slice(0, 200));
+    } catch (err) {
+      console.error("Chat error:", err);
+      setMessages((prev) => [
+        ...prev,
+        {
+          role: "assistant",
+          content: "Oops! Something went wrong. Let me try again in a moment. ✨",
+          timestamp: Date.now(),
+        },
+      ]);
     } finally {
       setIsLoading(false);
     }
-  };
+  }, [input, attachments, messages, model]);
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === "Enter" && !e.shiftKey) {
       e.preventDefault();
-      sendMessage(input, attachments);
+      handleSend();
     }
   };
 
-  const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    const reader = new FileReader();
-    reader.onload = (ev) => {
-      const content = ev.target?.result as string;
-      setAttachments(prev => [...prev, { name: file.name, type: file.type, content }]);
-    };
-    reader.readAsText(file);
-    e.target.value = "";
+  const handleVoice = (text: string) => {
+    setInput(text);
+    textareaRef.current?.focus();
   };
 
-  const removeAttachment = (index: number) => {
-    setAttachments(prev => prev.filter((_, i) => i !== index));
+  const extractCodeBlocks = (content: string) => {
+    const regex = /```(\w+)?
+([\s\S]*?)```/g;
+    const blocks: { language: string; code: string }[] = [];
+    let match;
+    while ((match = regex.exec(content)) !== null) {
+      blocks.push({ language: match[1] || "text", code: match[2].trim() });
+    }
+    return blocks;
   };
 
-  const applyCodeToEditor = (code: string) => {
-    window.dispatchEvent(new CustomEvent("byeol:setCode", { detail: { code } }));
+  const applyToEditor = (code: string, language: string) => {
+    window.dispatchEvent(
+      new CustomEvent("byeol:setCode", { detail: { code, language } })
+    );
+  };
+
+  const renderMessage = (msg: Message) => {
+    if (msg.role === "user") {
+      return (
+        <div className="message user">
+          <div className="message-avatar">👤</div>
+          <div style={{ maxWidth: "100%" }}>
+            <div className="message-bubble">{msg.content}</div>
+            {msg.attachments && (
+              <div style={{ display: "flex", flexWrap: "wrap", gap: 4, marginTop: 6 }}>
+                {msg.attachments.map((att, i) => (
+                  <span key={i} style={{ fontSize: "0.7rem", color: "var(--lunar)", background: "var(--glass)", padding: "3px 10px", borderRadius: "var(--radius-sm)" }}>
+                    📎 {att.name}
+                  </span>
+                ))}
+              </div>
+            )}
+            <div className="message-time">{new Date(msg.timestamp).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}</div>
+          </div>
+        </div>
+      );
+    }
+
+    const codeBlocks = extractCodeBlocks(msg.content);
+    const textParts = msg.content.split(/```(\w+)?
+[\s\S]*?```/g);
+
+    return (
+      <div className="message">
+        <div className="message-avatar">✨</div>
+        <div style={{ maxWidth: "100%", minWidth: 0 }}>
+          <div className="message-bubble">
+            {textParts.map((part, i) => (
+              <span key={i}>
+                {part}
+                {codeBlocks[i] && (
+                  <div className="code-block" style={{ margin: "10px 0" }}>
+                    <div className="code-block-header">
+                      <span style={{ fontFamily: "var(--font-mono)" }}>{codeBlocks[i].language}</span>
+                      <div style={{ display: "flex", gap: 8 }}>
+                        <button
+                          onClick={() => navigator.clipboard.writeText(codeBlocks[i].code)}
+                          style={{ background: "none", border: "none", color: "var(--lunar)", cursor: "pointer", padding: 2 }}
+                          title="Copy"
+                        >
+                          <CopyIcon size={12} />
+                        </button>
+                        <button
+                          onClick={() => applyToEditor(codeBlocks[i].code, codeBlocks[i].language)}
+                          style={{ background: "none", border: "none", color: "var(--lunar)", cursor: "pointer", padding: 2 }}
+                          title="Apply to Editor"
+                        >
+                          <PlayIcon size={12} />
+                        </button>
+                      </div>
+                    </div>
+                    <pre style={{ padding: 14, overflow: "auto", fontSize: "0.82rem", fontFamily: "var(--font-mono)", background: "rgba(0,0,0,0.35)", lineHeight: 1.6 }}>
+                      <code>{codeBlocks[i].code}</code>
+                    </pre>
+                  </div>
+                )}
+              </span>
+            ))}
+          </div>
+          <div className="message-time">{new Date(msg.timestamp).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}</div>
+        </div>
+      </div>
+    );
   };
 
   return (
     <div className="chat-window">
       <div className="chat-header">
         <div className="chat-title">
-          <SparklesIcon size={20} />
+          <span style={{ fontSize: "1.3rem", filter: "drop-shadow(0 0 8px var(--accent-glow))" }}>✨</span>
           <span>Byeol</span>
         </div>
-        <div className="chat-actions">
-          <div className="model-picker">
-            <button className="model-btn" onClick={() => setShowModelPicker(!showModelPicker)}>
-              {model === GROQ_MODELS.DEFAULT ? "Llama 3.3" : "Llama 3.1 Fast"}
+        <div style={{ display: "flex", gap: 10, alignItems: "center" }}>
+          <select
+            value={model}
+            onChange={(e) => setModel(e.target.value as GroqModel)}
+            style={{
+              padding: "5px 10px",
+              background: "var(--glass)",
+              border: "1px solid var(--glass-border)",
+              borderRadius: "var(--radius-sm)",
+              color: "var(--lunar)",
+              fontSize: "0.78rem",
+              cursor: "pointer",
+            }}
+          >
+            <option value="llama-3.3-70b-versatile">Llama 3.3 70B</option>
+            <option value="llama-3.1-8b-instant">Llama 3.1 8B</option>
+            <option value="mixtral-8x7b-32768">Mixtral 8x7B</option>
+          </select>
+          {onClose && (
+            <button
+              onClick={onClose}
+              style={{ background: "none", border: "none", color: "var(--lunar)", cursor: "pointer", padding: 4, borderRadius: 4 }}
+            >
+              <XIcon size={18} />
             </button>
-            {showModelPicker && (
-              <div className="model-dropdown glass-strong">
-                <button
-                  className={model === GROQ_MODELS.DEFAULT ? "active" : ""}
-                  onClick={() => { setModel(GROQ_MODELS.DEFAULT); setShowModelPicker(false); }}
-                >
-                  Llama 3.3 70B (Powerful)
-                </button>
-                <button
-                  className={model === GROQ_MODELS.FAST ? "active" : ""}
-                  onClick={() => { setModel(GROQ_MODELS.FAST); setShowModelPicker(false); }}
-                >
-                  Llama 3.1 8B (Fast)
-                </button>
-              </div>
-            )}
-          </div>
-          <button className="icon-btn" onClick={onClose} aria-label="Close chat">
-            <XIcon size={18} />
-          </button>
+          )}
         </div>
       </div>
-
       <div className="chat-messages">
-        {messages.map((msg) => (
-          <motion.div
-            key={msg.id}
-            initial={{ opacity: 0, y: 10 }}
-            animate={{ opacity: 1, y: 0 }}
-            className={`message ${msg.role}`}
-          >
-            <div className="message-avatar">
-              {msg.role === "assistant" ? "✨" : "👤"}
-            </div>
-            <div className="message-content">
-              <div className="message-text">
-                {msg.role === "assistant" ? (
-                  <FormattedMessage content={msg.content} onApplyCode={applyCodeToEditor} />
-                ) : (
-                  msg.content
-                )}
-              </div>
-              {msg.attachments && (
-                <div className="message-attachments">
-                  {msg.attachments.map((att, i) => (
-                    <div key={i} className="attachment-badge">
-                      <FileIcon size={12} />
-                      <span>{att.name}</span>
-                    </div>
-                  ))}
-                </div>
-              )}
-              <div className="message-time">
-                {new Date(msg.timestamp).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
-              </div>
-            </div>
-          </motion.div>
+        {messages.map((msg, i) => (
+          <div key={i}>{renderMessage(msg)}</div>
         ))}
         {isLoading && (
-          <div className="message assistant">
-            <div className="message-avatar">✨</div>
-            <div className="message-content">
-              <div className="thinking-indicator">
-                <div className="thinking-dot" />
-                <div className="thinking-dot" />
-                <div className="thinking-dot" />
-              </div>
+          <div className="message">
+            <div className="message-avatar">
+              <LoaderIcon size={16} />
+            </div>
+            <div className="thinking-indicator">
+              <div className="thinking-dot" />
+              <div className="thinking-dot" style={{ animationDelay: "-0.16s" }} />
+              <div className="thinking-dot" style={{ animationDelay: "-0.32s" }} />
             </div>
           </div>
         )}
         <div ref={messagesEndRef} />
       </div>
-
-      <div className="chat-input-area">
-        {attachments.length > 0 && (
-          <div className="attachment-list">
-            {attachments.map((att, i) => (
-              <div key={i} className="attachment-chip">
-                <FileIcon size={12} />
-                <span>{att.name}</span>
-                <button onClick={() => removeAttachment(i)}>
-                  <XIcon size={12} />
-                </button>
-              </div>
-            ))}
+      {showUploader && (
+        <div style={{ padding: "0 20px", borderTop: "1px solid rgba(255,255,255,0.05)" }}>
+          <div style={{ padding: "12px 0" }}>
+            <FileUploader
+              onFilesSelected={(files) => setAttachments((prev) => [...prev, ...files])}
+              attachments={attachments}
+              onRemove={(i) => setAttachments((prev) => prev.filter((_, idx) => idx !== i))}
+            />
           </div>
-        )}
+        </div>
+      )}
+      <div className="chat-input-area">
         <div className="chat-input-row">
-          <button className="input-icon-btn" onClick={() => fileInputRef.current?.click()} title="Attach file">
+          <button
+            className="input-icon-btn"
+            onClick={() => setShowUploader(!showUploader)}
+            style={{ color: showUploader ? "var(--accent)" : undefined }}
+          >
             <PaperclipIcon size={18} />
           </button>
-          <input
-            ref={fileInputRef}
-            type="file"
-            hidden
-            accept=".txt,.html,.css,.js,.pdf,.docx"
-            onChange={handleFileSelect}
-          />
+          <VoiceButton onTranscript={handleVoice} />
           <textarea
-            ref={inputRef}
+            ref={textareaRef}
             value={input}
             onChange={(e) => setInput(e.target.value)}
             onKeyDown={handleKeyDown}
             placeholder="Ask Byeol anything..."
             rows={1}
           />
-          <button
-            className="send-btn"
-            onClick={() => sendMessage(input, attachments)}
-            disabled={isLoading || (!input.trim() && attachments.length === 0)}
-          >
+          <button className="send-btn" onClick={handleSend} disabled={isLoading}>
             <SendIcon size={18} />
           </button>
         </div>
@@ -362,35 +277,3 @@ export function ChatWindow({ onClose, onToolCall }: ChatWindowProps) {
     </div>
   );
 }
-
-function FormattedMessage({ content, onApplyCode }: { content: string; onApplyCode: (code: string) => void }) {
-  const parts = content.split(/(\`\`\`[\w]*\n[\s\S]*?\n\`\`\`|\`[^\`]+\`)/g);
-  return (
-    <>
-      {parts.map((part, i) => {
-        if (part.startsWith("```")) {
-          const lang = part.match(/```(\w+)/)?.[1] || "";
-          const code = part.replace(/```[\w]*\n?/, "").replace(/\n?```$/, "");
-          return (
-            <div key={i} className="code-block">
-              <div className="code-block-header">
-                <span>{lang || "code"}</span>
-                <button onClick={() => onApplyCode(code)}>
-                  <CodeIcon size={14} /> Apply to Editor
-                </button>
-              </div>
-              <pre><code>{code}</code></pre>
-            </div>
-          );
-        }
-        if (part.startsWith("`") && part.endsWith("`")) {
-          return <code key={i} className="inline-code">{part.slice(1, -1)}</code>;
-        }
-        return <span key={i}>{part}</span>;
-      })}
-    </>
-  );
-}
-
-export default ChatWindow;
-

@@ -1,59 +1,41 @@
 "use client";
 
-import React, { useRef, useEffect } from "react";
-import { RefreshIcon, ExternalLinkIcon as ExternalIcon } from "./SvgIcons";
+import { useEffect, useRef } from "react";
 
 interface PreviewFrameProps {
-  html: string;
-  onRefresh: () => void;
+  code: string;
+  language: string;
 }
 
-export default function PreviewFrame({ html, onRefresh }: PreviewFrameProps) {
+export default function PreviewFrame({ code, language }: PreviewFrameProps) {
   const iframeRef = useRef<HTMLIFrameElement>(null);
-  const errorRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    if (iframeRef.current && html) {
-      try {
-        iframeRef.current.srcdoc = html;
-        if (errorRef.current) errorRef.current.classList.remove("show");
-      } catch (err: any) {
-        if (errorRef.current) {
-          errorRef.current.textContent = "⚠️ " + err.message;
-          errorRef.current.classList.add("show");
-        }
-      }
-    }
-  }, [html]);
+    const iframe = iframeRef.current;
+    if (!iframe) return;
 
-  const openInNewTab = () => {
-    const blob = new Blob([html], { type: "text/html" });
-    const url = URL.createObjectURL(blob);
-    window.open(url, "_blank");
-  };
+    let src = "";
+    if (language === "html" || language === "htm") {
+      src = code;
+    } else if (language === "css") {
+      src = `<style>${code}</style><div style="padding:20px;font-family:sans-serif"><h1>CSS Preview</h1><p>Your CSS is applied to this page.</p><div class="test-box" style="width:100px;height:100px;background:#c084fc;margin-top:20px;border-radius:12px"></div></div>`;
+    } else if (language === "javascript" || language === "js" || language === "typescript" || language === "ts") {
+      src = `<script>try{${code}}catch(e){document.write('<pre style="color:red;padding:20px">Error: '+e.message+'</pre>')}</script><div style="padding:20px;font-family:sans-serif"><h1>JS Preview</h1><p>Check the console for output.</p></div>`;
+    } else {
+      src = `<pre style="padding:20px;font-family:monospace;font-size:0.9rem">${code.replace(/</g, "&lt;").replace(/>/g, "&gt;")}</pre>`;
+    }
+
+    iframe.srcdoc = src;
+  }, [code, language]);
 
   return (
-    <div className="pane glass" style={{ display: "flex", flexDirection: "column", height: "100%" }}>
-      <div className="pane-header">
-        <div className="pane-title">Live Preview</div>
-        <div className="pane-actions">
-          <button className="icon-btn" title="Refresh" onClick={onRefresh}>
-            <RefreshIcon size={16} />
-          </button>
-          <button className="icon-btn" title="Open in new tab" onClick={openInNewTab}>
-            <ExternalIcon size={16} />
-          </button>
-        </div>
-      </div>
-      <div className="preview-frame">
-        <iframe
-          ref={iframeRef}
-          sandbox="allow-scripts"
-          title="Live Preview"
-          style={{ width: "100%", height: "100%", border: "none", background: "white" }}
-        />
-        <div className="error-overlay" ref={errorRef} />
-      </div>
+    <div style={{ width: "100%", height: "100%", borderRadius: "0 0 var(--radius-md) var(--radius-md)", overflow: "hidden", background: "white" }}>
+      <iframe
+        ref={iframeRef}
+        title="preview"
+        sandbox="allow-scripts allow-same-origin"
+        style={{ width: "100%", height: "100%", border: "none" }}
+      />
     </div>
   );
 }

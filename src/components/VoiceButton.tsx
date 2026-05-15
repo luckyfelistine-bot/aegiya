@@ -1,62 +1,50 @@
 "use client";
 
-import React, { useState, useRef, useCallback } from "react";
-import { MicIcon } from "./SvgIcons";
+import { useState, useRef } from "react";
+import { MicIcon, LoaderIcon } from "./SvgIcons";
+import { startSpeechRecognition } from "@/utils/speech";
 
 interface VoiceButtonProps {
   onTranscript: (text: string) => void;
 }
 
 export default function VoiceButton({ onTranscript }: VoiceButtonProps) {
-  const [isRecording, setIsRecording] = useState(false);
-  const recognitionRef = useRef<SpeechRecognition | null>(null);
+  const [recording, setRecording] = useState(false);
+  const stopRef = useRef<(() => void) | null>(null);
 
-  const initRecognition = useCallback(() => {
-    if (!("webkitSpeechRecognition" in window || "SpeechRecognition" in window)) return;
-    const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
-    recognitionRef.current = new SR();
-    recognitionRef.current.continuous = false;
-    recognitionRef.current.interimResults = true;
-    recognitionRef.current.lang = "en-US";
-
-    recognitionRef.current.onresult = (e: SpeechRecognitionEvent) => {
-      let text = "";
-      for (let i = e.resultIndex; i < e.results.length; i++) {
-        text += e.results[i][0].transcript;
-      }
-      if (e.results[e.results.length - 1].isFinal) {
-        onTranscript(text);
-        stopRecording();
-      }
-    };
-
-    recognitionRef.current.onerror = () => stopRecording();
-    recognitionRef.current.onend = () => stopRecording();
-  }, [onTranscript]);
-
-  const startRecording = () => {
-    if (!recognitionRef.current) initRecognition();
-    if (!recognitionRef.current) return;
-    setIsRecording(true);
-    recognitionRef.current.start();
+  const handleStart = () => {
+    setRecording(true);
+    stopRef.current = startSpeechRecognition({
+      onResult: (text, isFinal) => {
+        if (isFinal && text.trim()) {
+          onTranscript(text.trim());
+        }
+      },
+      onError: () => {
+        setRecording(false);
+      },
+      onEnd: () => {
+        setRecording(false);
+      },
+      lang: "en-US",
+    });
   };
 
-  const stopRecording = () => {
-    setIsRecording(false);
-    recognitionRef.current?.stop();
+  const handleStop = () => {
+    if (stopRef.current) {
+      stopRef.current();
+      stopRef.current = null;
+    }
+    setRecording(false);
   };
 
   return (
     <button
-      className={`dock-btn ${isRecording ? "recording" : ""}`}
-      title="Hold to talk"
-      onMouseDown={startRecording}
-      onMouseUp={stopRecording}
-      onMouseLeave={stopRecording}
-      onTouchStart={startRecording}
-      onTouchEnd={stopRecording}
+      className={`voice-btn ${recording ? "recording" : ""}`}
+      onClick={recording ? handleStop : handleStart}
+      aria-label={recording ? "Stop recording" : "Start voice input"}
     >
-      <MicIcon size={22} />
+      {recording ? <LoaderIcon size={20} /> : <MicIcon size={20} />}
     </button>
   );
 }

@@ -116,7 +116,8 @@ export async function generateArtifact(config: ArtifactConfig): Promise<void> {
     .replace(/^_|_$/g, '');
 
   if (type === 'pdf') {
-    await generateEnhancedPDF(content, title, options);
+    const blob = await generateEnhancedPDF(content, title, options);
+    downloadBlob(blob, `${title.replace(/\s/g, '_')}.pdf`);
   } else if (type === 'docx') {
     await generateEnhancedDOCX(content, title, options);
   } else if (type === 'zip') {
@@ -136,7 +137,7 @@ export async function generateEnhancedPDF(
   content: string,
   title: string,
   options?: ArtifactConfig['options']
-): Promise<void> {
+): Promise<Blob> {
   const doc = new jsPDF();
   const cleanText = sanitizeForPDF(content);
   const lines = cleanText.split('\n');
@@ -195,6 +196,7 @@ export async function generateEnhancedPDF(
     }
   }
 
+  // Add page numbers
   const totalPages = (doc as any).internal.getNumberOfPages();
   for (let i = 1; i <= totalPages; i++) {
     doc.setPage(i);
@@ -204,7 +206,7 @@ export async function generateEnhancedPDF(
     if (options?.footerText) doc.text(options.footerText, 20, 292);
   }
 
-  doc.save(`${title.replace(/\s/g, '_')}.pdf`);
+  return doc.output('blob');
 }
 
 export async function generateEnhancedDOCX(
@@ -385,8 +387,8 @@ export async function generateSmartArtifact(
 }
 
 // Legacy exports for backward compatibility
-export function generatePDF(content: string, title: string): void {
-  generateEnhancedPDF(content, title);
+export function generatePDF(content: string, title: string): Promise<Blob> {
+  return generateEnhancedPDF(content, title);
 }
 
 export function generateDOCX(content: string, title: string): Promise<void> {

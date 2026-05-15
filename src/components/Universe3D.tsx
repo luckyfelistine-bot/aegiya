@@ -67,13 +67,13 @@ const ARCS: ArcData[] = [
 ];
 
 const TEX = {
-  day:    "https://cdn.jsdelivr.net/npm/three-globe@2.45.2/example/img/earth-blue-marble.jpg",
-  night:  "https://cdn.jsdelivr.net/npm/three-globe@2.45.2/example/img/earth-night.jpg",
-  cloud:  "https://cdn.jsdelivr.net/npm/three-globe@2.45.2/example/img/earth-clouds.png",
-  bump:   "https://cdn.jsdelivr.net/npm/three-globe@2.45.2/example/img/earth-topology.png",
-  moon:   "https://cdn.jsdelivr.net/npm/three-globe@2.45.2/example/img/moon.jpg",
-  stars:  "https://cdn.jsdelivr.net/npm/three-globe@2.45.2/example/img/night-sky.png",
+  day:     "https://s3-us-west-2.amazonaws.com/s.cdpn.io/122460/earth_map_2048x1024.jpg",
+  night:   "https://s3-us-west-2.amazonaws.com/s.cdpn.io/122460/earth_map_1024x512.jpg", // use as fallback or find night variant
+  clouds:  "https://s3-us-west-2.amazonaws.com/s.cdpn.io/122460/earth_clouds_2048x1024.jpg",
+  bump:    "https://s3-us-west-2.amazonaws.com/s.cdpn.io/122460/earth_bump_2048x1024.jpg",
+  specular:"https://s3-us-west-2.amazonaws.com/s.cdpn.io/122460/earth_specular_2048x1024.jpg",
 };
+
 
 /* ─── UTILITIES ─── */
 function latLonToVector3(lat: number, lon: number, radius: number): THREE.Vector3 {

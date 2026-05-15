@@ -88,10 +88,12 @@ export default function Home() {
     showToast("Welcome aboard, Dal! ✨", "success");
   };
 
-  const navigate = useCallback((view: View) => {
-    setCurrentView(view);
-    setSidebarOpen(false);
-    setHeartOpen(false);
+  const navigate = useCallback((view: string) => {
+    if (["dashboard", "chat", "workspace", "universe", "constellation"].includes(view)) {
+      setCurrentView(view as View);
+      setSidebarOpen(false);
+      setHeartOpen(false);
+    }
   }, []);
 
   const views: Record<View, React.ReactNode> = {

@@ -1393,7 +1393,7 @@ export default function Universe3D() {
     if (altitude > 5) status = "Day";
     else if (altitude > -5) status = altitude > 0 ? "Sunset" : "Twilight";
     else if (altitude > -12) status = "Nautical Twilight";
-    return { altitude: altitude.toFixed(1), azimuth: azimuth.toFixed(1), status };
+    return { altitude, azimuth, status };
   }, [kenyaTime]);
 
   const moonInfo = useMemo(() => getMoonPhaseInfo(kenyaTime), [kenyaTime]);
@@ -1543,7 +1543,7 @@ export default function Universe3D() {
           </div>
           <div style={{ fontSize: "0.75rem", color: "var(--lunar)", lineHeight: 1.4 }}>
             <div style={{ color: "white", fontWeight: 500 }}>{sunInfo.status}</div>
-            <div>Alt: {sunInfo.altitude}° · Az: {sunInfo.azimuth}°</div>
+            <div>Alt: {sunInfo.altitude.toFixed(1)}° · Az: {sunInfo.azimuth.toFixed(1)}°</div>
           </div>
         </div>
 

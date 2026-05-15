@@ -47,7 +47,7 @@ export default function CosmosBackground() {
   const fallingStarsRef = useRef<FallingStar[]>([]);
   const nebulaOrbsRef = useRef<NebulaOrb[]>([]);
   const mouseRef = useRef({ x: 0, y: 0, active: false });
-  const audioDataRef = useRef(new Uint8Array(64));
+  const audioDataRef = useRef<Uint8Array>(new Uint8Array(64));
   const animRef = useRef(0);
 
   useEffect(() => {

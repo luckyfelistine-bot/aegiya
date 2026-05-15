@@ -14,20 +14,17 @@ export default function VoiceButton({ onTranscript }: VoiceButtonProps) {
 
   const handleStart = () => {
     setRecording(true);
-    stopRef.current = startSpeechRecognition({
-      onResult: (text, isFinal) => {
-        if (isFinal && text.trim()) {
+    stopRef.current = startSpeechRecognition(
+      (text: string) => {
+        if (text.trim()) {
           onTranscript(text.trim());
         }
-      },
-      onError: () => {
         setRecording(false);
       },
-      onEnd: () => {
+      () => {
         setRecording(false);
-      },
-      lang: "en-US",
-    });
+      }
+    );
   };
 
   const handleStop = () => {

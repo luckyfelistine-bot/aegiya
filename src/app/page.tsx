@@ -1,164 +1,276 @@
-// src/app/page.tsx
 "use client";
 
-import React, { useState, useCallback, useEffect } from "react";
+import { useState, useEffect, useCallback, Suspense } from "react";
 import dynamic from "next/dynamic";
 import CosmosBackground from "@/components/CosmosBackground";
 import Dashboard from "@/components/Dashboard";
-import ThemePicker from "@/components/ThemePicker";
-import Toast from "@/components/Toast";
+import { useToast, ToastContainer } from "@/components/Toast";
+import { memory } from "@/lib/memory";
 import {
-  HeartIcon,
-  GlobeIcon,
+  HomeIcon,
   CodeIcon,
   ChatIcon,
+  ConstellationIcon,
+  GlobeIcon,
+  HeartIcon,
+  XIcon,
+  MenuIcon,
 } from "@/components/SvgIcons";
+import ThemePicker from "@/components/ThemePicker";
+import InstallButton from "@/components/InstallButton";
 
-const Universe3D = dynamic(() => import("@/components/Universe3D"), { ssr: false });
-const WorkspaceView = dynamic(() => import("@/components/WorkspaceView"), { ssr: false });
-const ChatWindow = dynamic(() => import("@/components/ChatWindow"), { ssr: false });
+// Dynamic imports with loading states
+const ChatWindow = dynamic(() => import("@/components/ChatWindow"), {
+  ssr: false,
+  loading: () => (
+    <div className="view-loading">
+      <div className="loading-spinner" />
+      <p>Loading Chat...</p>
+    </div>
+  ),
+});
 
-type ViewMode = "universe" | "workspace" | "chat";
+const WorkspaceView = dynamic(() => import("@/components/WorkspaceView"), {
+  ssr: false,
+  loading: () => (
+    <div className="view-loading">
+      <div className="loading-spinner" />
+      <p>Loading Workspace...</p>
+    </div>
+  ),
+});
 
-interface ToastState {
-  show: boolean;
-  type: "info" | "success" | "warning" | "error";
-  title: string;
-  message: string;
-}
+const Universe3D = dynamic(() => import("@/components/Universe3D"), {
+  ssr: false,
+  loading: () => (
+    <div className="view-loading">
+      <div className="loading-spinner" />
+      <p>Loading Universe...</p>
+    </div>
+  ),
+});
 
-export default function HomePage() {
-  const [currentView, setCurrentView] = useState<ViewMode>("universe");
-  const [isDashboardOpen, setIsDashboardOpen] = useState(false);
-  const [isDockOpen, setIsDockOpen] = useState(false);
-  const [theme, setTheme] = useState("cosmic");
-  const [toast, setToast] = useState<ToastState>({
-    show: false,
-    type: "info",
-    title: "",
-    message: "",
-  });
-  const [isMobile, setIsMobile] = useState(false);
+const ConstellationMap = dynamic(() => import("@/components/ConstellationMap"), {
+  ssr: false,
+  loading: () => (
+    <div className="view-loading">
+      <div className="loading-spinner" />
+      <p>Loading Constellation...</p>
+    </div>
+  ),
+});
+
+type View = "dashboard" | "chat" | "workspace" | "universe" | "constellation";
+
+export default function Home() {
+  const [currentView, setCurrentView] = useState<View>("dashboard");
+  const [showOnboarding, setShowOnboarding] = useState(false);
+  const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [heartOpen, setHeartOpen] = useState(false);
+  const { toasts, showToast, removeToast } = useToast();
 
   useEffect(() => {
-    const checkMobile = () => setIsMobile(window.innerWidth < 768);
-    checkMobile();
-    window.addEventListener("resize", checkMobile);
-    return () => window.removeEventListener("resize", checkMobile);
+    memory.getProfile<string>("onboarded").then((val) => {
+      if (!val) setShowOnboarding(true);
+    });
   }, []);
 
-  useEffect(() => {
-    const saved = localStorage.getItem("byeol-theme");
-    if (saved) {
-      setTheme(saved);
-      document.documentElement.setAttribute("data-theme", saved);
-    } else {
-      document.documentElement.setAttribute("data-theme", "cosmic");
-    }
+  const handleOnboard = async (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    const form = e.currentTarget;
+    const data = new FormData(form);
+    await memory.setProfile("userName", data.get("name") || "Dal");
+    await memory.setProfile("favoriteColors", data.get("colors") || "pink, purple");
+    await memory.setProfile("studyTopic", data.get("topic") || "medicine");
+    await memory.setProfile("onboarded", "true");
+    setShowOnboarding(false);
+    showToast("Welcome aboard, Dal! ✨", "success");
+  };
+
+  const navigate = useCallback((view: View) => {
+    setCurrentView(view);
+    setSidebarOpen(false);
+    setHeartOpen(false);
   }, []);
 
-  const showToast = useCallback(
-    (type: ToastState["type"], title: string, message: string) => {
-      setToast({ show: true, type, title, message });
-    },
-    []
-  );
-  const hideToast = useCallback(() => setToast((p) => ({ ...p, show: false })), []);
-  const navigateTo = useCallback((view: string) => {
-    if (["universe", "workspace", "chat"].includes(view)) {
-      setCurrentView(view as ViewMode);
-      setIsDockOpen(false);
-    }
-  }, []);
-  const toggleDashboard = useCallback(() => setIsDashboardOpen((p) => !p), []);
-  const toggleDock = useCallback(() => setIsDockOpen((p) => !p), []);
-  const handleThemeChange = useCallback((newTheme: string) => {
-    setTheme(newTheme);
-    document.documentElement.setAttribute("data-theme", newTheme);
-    localStorage.setItem("byeol-theme", newTheme);
-  }, []);
+  const views: Record<View, React.ReactNode> = {
+    dashboard: <Dashboard onNavigate={navigate} onOpenLesson={() => showToast("Lesson feature coming soon!", "info")} />,
+    chat: <ChatWindow onClose={() => navigate("universe")} />,
+    workspace: <WorkspaceView showToast={showToast} onClose={() => navigate("universe")} />,
+    universe: <Universe3D />,
+    constellation: <ConstellationMap />,
+  };
 
   return (
-    <main className="relative w-screen h-screen overflow-hidden bg-void">
+    <div className="app-shell">
       <CosmosBackground />
 
-      <Dashboard isOpen={isDashboardOpen} onClose={() => setIsDashboardOpen(false)} onNavigate={navigateTo} />
+      {/* Toast notifications */}
+      <ToastContainer toasts={toasts} removeToast={removeToast} />
 
-      {/* Main Content – scrollable */}
-        <div
-          style={
-            currentView === "universe"
-              ? { width: "100%", height: "100%", overflow: "hidden", padding: 0, margin: 0 }
-              : {}
-          }
-          className={
-            currentView === "universe"
-              ? ""
-              : "h-full w-full overflow-y-auto p-4 md:p-6 scrollable-content"
-          }
-        >
-          {currentView === "universe" && <Universe3D />}
-          {currentView === "workspace" && <WorkspaceView showToast={showToast} onClose={() => setCurrentView("universe")} />}
-          {currentView === "chat" && <ChatWindow onClose={() => setCurrentView("universe")} />}
-        </div>
-
-      {/* Dock – heart button + dropdown (moved to top-left) */}
-      <div className="fixed top-6 left-6 z-50">
-        <button
-          onClick={toggleDock}
-          className="w-12 h-12 rounded-full bg-gradient-to-br from-[#8b5cf6] to-[#06b6d4] flex items-center justify-center shadow-lg hover:scale-105 transition-transform"
-          aria-label="Open navigation"
-        >
-          <HeartIcon size={24} className="text-white" />
-        </button>
-
-        {isDockOpen && (
-          <div
-            className="absolute top-14 left-0 p-2 min-w-[180px] flex flex-col gap-2"
-            style={{
-              background: "rgba(10, 10, 26, 0.9)",
-              backdropFilter: "blur(16px)",
-              border: "1px solid rgba(255, 255, 255, 0.1)",
-              borderRadius: "20px",
-              boxShadow: "0 8px 24px rgba(0, 0, 0, 0.3)",
-              animation: "fadeInUp 0.2s ease-out",
-            }}
-          >
-            {/* buttons as before */}
-            <button
-              onClick={() => navigateTo("universe")}
-              className={`flex items-center gap-3 px-4 py-2 rounded-lg transition-all ${
-                currentView === "universe" ? "bg-purple-500/20 text-purple-400" : "hover:bg-white/10"
-              }`}
-            >
-              <GlobeIcon size={18} />
-              <span className="text-sm">Universe</span>
-            </button>
-            <button
-              onClick={() => navigateTo("workspace")}
-              className={`flex items-center gap-3 px-4 py-2 rounded-lg transition-all ${
-                currentView === "workspace" ? "bg-purple-500/20 text-purple-400" : "hover:bg-white/10"
-              }`}
-            >
-              <CodeIcon size={18} />
-              <span className="text-sm">Workspace</span>
-            </button>
-            <button
-              onClick={() => navigateTo("chat")}
-              className={`flex items-center gap-3 px-4 py-2 rounded-lg transition-all ${
-                currentView === "chat" ? "bg-purple-500/20 text-purple-400" : "hover:bg-white/10"
-              }`}
-            >
-              <ChatIcon size={18} />
-              <span className="text-sm">Chat</span>
-            </button>
-            <div className="border-t border-white/10 my-1" />
-            <ThemePicker value={theme} onChange={handleThemeChange} />
+      {/* Onboarding modal */}
+      {showOnboarding && (
+        <div className="modal-overlay" onClick={() => setShowOnboarding(false)}>
+          <div className="modal-content" onClick={(e) => e.stopPropagation()}>
+            <div style={{ marginBottom: 24 }}>
+              <div
+                style={{
+                  width: 64,
+                  height: 64,
+                  borderRadius: "var(--radius-full)",
+                  background: "linear-gradient(135deg, var(--accent), var(--aurora), var(--rose))",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  margin: "0 auto 20px",
+                  fontSize: "1.8rem",
+                  boxShadow: "0 0 30px var(--accent-glow)",
+                }}
+              >
+                ✨
+              </div>
+              <h2 style={{ fontSize: "1.4rem", fontWeight: 700, marginBottom: 10 }} className="text-gradient">
+                Welcome, Dal
+              </h2>
+              <p style={{ fontSize: "0.88rem", color: "var(--lunar)", lineHeight: 1.6 }}>
+                Byeol has been waiting for you. Let&apos;s personalize your star a little before we begin.
+              </p>
+            </div>
+            <form onSubmit={handleOnboard}>
+              <div className="form-group">
+                <label htmlFor="name">Your Name</label>
+                <input id="name" name="name" type="text" defaultValue="Dal" required />
+              </div>
+              <div className="form-group">
+                <label htmlFor="colors">Favorite Colors</label>
+                <input id="colors" name="colors" type="text" defaultValue="pink, purple" />
+              </div>
+              <div className="form-group">
+                <label htmlFor="topic">What are you studying?</label>
+                <input id="topic" name="topic" type="text" defaultValue="medicine" />
+              </div>
+              <button type="submit" className="neon-button">
+                Start Your Journey
+              </button>
+            </form>
           </div>
-        )}
+        </div>
+      )}
+
+      {/* Mobile menu overlay */}
+      {sidebarOpen && (
+        <div className="sidebar-overlay open" onClick={() => setSidebarOpen(false)} />
+      )}
+
+      {/* Mobile sidebar */}
+      <div className={`dashboard-sidebar ${sidebarOpen ? "open" : ""}`}>
+        <div className="dashboard-sidebar-header">
+          <button onClick={() => setSidebarOpen(false)} style={{ background: "none", border: "none", color: "var(--lunar)", cursor: "pointer" }}>
+            <XIcon size={20} />
+          </button>
+        </div>
+        <div className="dashboard-sidebar-content">
+          <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+            {[
+              { id: "dashboard" as View, icon: <HomeIcon size={20} />, label: "Dashboard" },
+              { id: "chat" as View, icon: <ChatIcon size={20} />, label: "Chat" },
+              { id: "workspace" as View, icon: <CodeIcon size={20} />, label: "Workspace" },
+              { id: "universe" as View, icon: <GlobeIcon size={20} />, label: "Universe" },
+              { id: "constellation" as View, icon: <ConstellationIcon size={20} />, label: "Constellation" },
+            ].map((item) => (
+              <button
+                key={item.id}
+                className={`glass-button ${currentView === item.id ? "active" : ""}`}
+                onClick={() => navigate(item.id)}
+                style={{ justifyContent: "flex-start", width: "100%", padding: "12px 16px" }}
+              >
+                {item.icon}
+                <span style={{ fontWeight: 500 }}>{item.label}</span>
+              </button>
+            ))}
+          </div>
+        </div>
       </div>
 
-      <Toast show={toast.show} type={toast.type} title={toast.title} message={toast.message} onClose={hideToast} />
-    </main>
+      {/* Dock */}
+      <nav className="dock">
+        <button className="dock-logo" onClick={() => setHeartOpen(!heartOpen)} aria-label="Menu">
+          <HeartIcon size={20} />
+        </button>
+        <div className="dock-divider" />
+        <button
+          className={`dock-btn ${currentView === "dashboard" ? "active" : ""}`}
+          onClick={() => navigate("dashboard")}
+          aria-label="Dashboard"
+        >
+          <HomeIcon size={20} />
+        </button>
+        <button
+          className={`dock-btn ${currentView === "chat" ? "active" : ""}`}
+          onClick={() => navigate("chat")}
+          aria-label="Chat"
+        >
+          <ChatIcon size={20} />
+        </button>
+        <button
+          className={`dock-btn ${currentView === "workspace" ? "active" : ""}`}
+          onClick={() => navigate("workspace")}
+          aria-label="Workspace"
+        >
+          <CodeIcon size={20} />
+        </button>
+        <button
+          className={`dock-btn ${currentView === "universe" ? "active" : ""}`}
+          onClick={() => navigate("universe")}
+          aria-label="Universe"
+        >
+          <GlobeIcon size={20} />
+        </button>
+        <button
+          className={`dock-btn ${currentView === "constellation" ? "active" : ""}`}
+          onClick={() => navigate("constellation")}
+          aria-label="Constellation"
+        >
+          <ConstellationIcon size={20} />
+        </button>
+        <div className="dock-divider" />
+        <button
+          className="dock-btn hide-mobile"
+          onClick={() => setSidebarOpen(true)}
+          aria-label="Menu"
+        >
+          <MenuIcon size={20} />
+        </button>
+
+        {/* Heart dropdown */}
+        {heartOpen && (
+          <div className="dock-dropdown">
+            <div style={{ padding: "8px 4px 10px", borderBottom: "1px solid var(--glass-border)", marginBottom: 10 }}>
+              <p style={{ fontSize: "0.75rem", color: "var(--lunar)", textAlign: "center" }}>
+                Made with love for Dal
+              </p>
+            </div>
+            <ThemePicker />
+            <div style={{ padding: "10px 4px 4px", borderTop: "1px solid var(--glass-border)", marginTop: 10 }}>
+              <InstallButton />
+            </div>
+          </div>
+        )}
+      </nav>
+
+      {/* Main content — ALWAYS scrollable, NEVER split with universe */}
+      <main className="main-content">
+        <Suspense
+          fallback={
+            <div className="view-loading">
+              <div className="loading-spinner" />
+              <p>Loading view...</p>
+            </div>
+          }
+        >
+          {views[currentView]}
+        </Suspense>
+      </main>
+    </div>
   );
 }

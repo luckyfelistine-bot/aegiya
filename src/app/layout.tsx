@@ -1,21 +1,14 @@
-// src/app/layout.tsx
 import type { Metadata, Viewport } from "next";
 import { Inter, Outfit, JetBrains_Mono } from "next/font/google";
 import "./globals.css";
 
-/**
- * Display font for headings and brand elements
- */
 const outfit = Outfit({
   subsets: ["latin"],
   variable: "--font-display",
   display: "swap",
-  weight: ["300", "400", "500", "600", "700"],
+  weight: ["300", "400", "500", "600", "700", "800"],
 });
 
-/**
- * Body font for readable text
- */
 const inter = Inter({
   subsets: ["latin"],
   variable: "--font-body",
@@ -23,9 +16,6 @@ const inter = Inter({
   weight: ["300", "400", "500", "600", "700"],
 });
 
-/**
- * Monospace font for code and technical content
- */
 const jetbrainsMono = JetBrains_Mono({
   subsets: ["latin"],
   variable: "--font-mono",
@@ -33,10 +23,6 @@ const jetbrainsMono = JetBrains_Mono({
   weight: ["400", "500", "600", "700"],
 });
 
-/**
- * Metadata for the Byeol application
- * Optimized for PWA and SEO
- */
 export const metadata: Metadata = {
   title: "Byeol — For Dal",
   description: "A personal AI companion built with love for Dal. Explore the universe, create code, and chat with Byeol.",
@@ -47,7 +33,6 @@ export const metadata: Metadata = {
     icon: "/icon-192.png",
     apple: "/icon-192.png",
   },
-  themeColor: "#050510",
   appleWebApp: {
     capable: true,
     statusBarStyle: "black-translucent",
@@ -55,37 +40,32 @@ export const metadata: Metadata = {
   },
 };
 
-/**
- * Viewport configuration for responsive design
- */
 export const viewport: Viewport = {
   width: "device-width",
   initialScale: 1,
   maximumScale: 1,
   userScalable: false,
   themeColor: [
-    { media: "(prefers-color-scheme: dark)", color: "#050510" },
-    { media: "(prefers-color-scheme: light)", color: "#050510" },
+    { media: "(prefers-color-scheme: dark)", color: "#030308" },
+    { media: "(prefers-color-scheme: light)", color: "#030308" },
   ],
 };
 
-/**
- * Root layout component
- * Wraps the entire application with font variables and global structure
- */
 export default function RootLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
   return (
-    <html
-      lang="en"
-      className={`${outfit.variable} ${inter.variable} ${jetbrainsMono.variable}`}
-      data-theme="cosmic"
-    >
-      <body className="font-body antialiased overflow-hidden bg-void text-starlight">
+    <html lang="en" data-theme="cosmic">
+      <body className={`${inter.variable} ${outfit.variable} ${jetbrainsMono.variable} antialiased`}>
         {children}
+        {/* Visual overlays */}
+        <div className="scanlines" aria-hidden="true" />
+        <div className="scanlines-dense" aria-hidden="true" />
+        <div className="noise-overlay" aria-hidden="true" />
+        <div className="vignette" aria-hidden="true" />
+        <div className="chromatic" aria-hidden="true" />
       </body>
     </html>
   );

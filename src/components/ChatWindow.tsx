@@ -140,8 +140,7 @@ export default function ChatWindow({ onClose }: ChatWindowProps) {
     }
 
     const codeBlocks = extractCodeBlocks(msg.content);
-    const textParts = msg.content.split(/```(\w+)?
-[\s\S]*?```/g);
+    const textParts = msg.content.split(/```(\w+)?\n[\s\S]*?```/g);
 
     return (
       <div className="message">

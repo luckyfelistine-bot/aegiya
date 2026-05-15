@@ -959,6 +959,19 @@ function Graticule({ zoomLevel }: { zoomLevel: number }) {
   );
 }
 
+function ParkCircle({ position, target }: { position: THREE.Vector3; target: THREE.Vector3 }) {
+  const ref = useRef<THREE.Mesh>(null);
+  useEffect(() => {
+    if (ref.current) ref.current.lookAt(target);
+  }, [target]);
+  return (
+    <mesh ref={ref} position={position}>
+      <circleGeometry args={[0.03, 16]} />
+      <meshBasicMaterial color="#4a7c59" transparent opacity={0.7} side={THREE.DoubleSide} />
+    </mesh>
+  );
+}
+
 function NairobiScene({ zoomLevel }: { zoomLevel: number }) {
   const config = ZOOM_LEVELS[zoomLevel];
   if (!config.showNairobi) return null;
@@ -1051,10 +1064,7 @@ function NairobiScene({ zoomLevel }: { zoomLevel: number }) {
       </lineSegments>
       <instancedMesh ref={meshRef} args={[buildingGeo, buildingMat, buildingCount]} />
       {parkPositions.map((pos, i) => (
-        <mesh key={i} position={pos} lookAt={basePos}>
-          <circleGeometry args={[0.03, 16]} />
-          <meshBasicMaterial color="#4a7c59" transparent opacity={0.7} side={THREE.DoubleSide} />
-        </mesh>
+        <ParkCircle key={i} position={pos} target={basePos} />
       ))}
       {/* Church */}
       <mesh position={basePos.clone().add(east.clone().multiplyScalar(0.15)).add(north.clone().multiplyScalar(0.1)).add(up.clone().multiplyScalar(0.04))}>

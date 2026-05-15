@@ -1,38 +1,48 @@
-const DB_NAME = "byeol-memory";
-const DB_VERSION = 2;
+const DB_NAME = "byeol-memory-v3";
+const DB_VERSION = 1;
 
-interface MemoryDB extends IDBDatabase {
-  // Type augmentation
+interface MemoryRecord {
+  key: string;
+  value: unknown;
+  updatedAt: number;
 }
 
-let dbPromise: Promise<MemoryDB> | null = null;
-
-function openDB(): Promise<MemoryDB> {
-  if (dbPromise) return dbPromise;
-  dbPromise = new Promise((resolve, reject) => {
-    const request = indexedDB.open(DB_NAME, DB_VERSION);
-    request.onerror = () => reject(request.error);
-    request.onsuccess = () => resolve(request.result as MemoryDB);
-    request.onupgradeneeded = (event) => {
-      const db = (event.target as IDBOpenDBRequest).result;
-      if (!db.objectStoreNames.contains("profile")) {
-        db.createObjectStore("profile", { keyPath: "key" });
-      }
-      if (!db.objectStoreNames.contains("messages")) {
-        db.createObjectStore("messages", { keyPath: "id", autoIncrement: true });
-      }
-      if (!db.objectStoreNames.contains("projects")) {
-        db.createObjectStore("projects", { keyPath: "id" });
-      }
-      if (!db.objectStoreNames.contains("milestones")) {
-        db.createObjectStore("milestones", { keyPath: "id", autoIncrement: true });
-      }
-    };
-  });
-  return dbPromise;
+export interface Project {
+  id: number;
+  name: string;
+  code: string;
+  language: string;
+  description?: string;
+  createdAt: number;
+  updatedAt: number;
 }
 
-// Dashboard preferences types
+export interface ChatMessage {
+  id?: number;
+  role: "user" | "assistant";
+  content: string;
+  timestamp: number;
+  attachments?: Attachment[];
+}
+
+export interface Attachment {
+  name: string;
+  type: string;
+  size: number;
+  content?: string;
+}
+
+export interface FileRecord {
+  id?: number;
+  name: string;
+  path: string;
+  content: string;
+  language: string;
+  projectId?: number;
+  createdAt: number;
+  updatedAt: number;
+}
+
 export interface DashboardPrefs {
   showCoding: boolean;
   showStatus: boolean;
@@ -53,121 +63,200 @@ export const defaultDashboardPrefs: DashboardPrefs = {
   showProgress: true,
 };
 
-export const memory = {
-  async getProfile(key: string): Promise<any> {
+function openDB(): Promise<IDBDatabase> {
+  return new Promise((resolve, reject) => {
+    const req = indexedDB.open(DB_NAME, DB_VERSION);
+    req.onerror = () => reject(req.error);
+    req.onsuccess = () => resolve(req.result);
+    req.onupgradeneeded = () => {
+      const db = req.result;
+      if (!db.objectStoreNames.contains("memory")) {
+        db.createObjectStore("memory", { keyPath: "key" });
+      }
+      if (!db.objectStoreNames.contains("projects")) {
+        db.createObjectStore("projects", { keyPath: "id", autoIncrement: true });
+      }
+      if (!db.objectStoreNames.contains("messages")) {
+        db.createObjectStore("messages", { keyPath: "id", autoIncrement: true });
+      }
+      if (!db.objectStoreNames.contains("files")) {
+        db.createObjectStore("files", { keyPath: "id", autoIncrement: true });
+      }
+    };
+  });
+}
+
+class MemoryStore {
+  async get<T>(key: string): Promise<T | null> {
     const db = await openDB();
     return new Promise((resolve, reject) => {
-      const tx = db.transaction("profile", "readonly");
-      const store = tx.objectStore("profile");
+      const tx = db.transaction("memory", "readonly");
+      const store = tx.objectStore("memory");
       const req = store.get(key);
-      req.onsuccess = () => resolve(req.result?.value ?? null);
-      req.onerror = () => reject(req.error);
-    });
-  },
-
-  async setProfile(key: string, value: any): Promise<void> {
-    const db = await openDB();
-    return new Promise((resolve, reject) => {
-      const tx = db.transaction("profile", "readwrite");
-      const store = tx.objectStore("profile");
-      const req = store.put({ key, value });
-      req.onsuccess = () => resolve();
-      req.onerror = () => reject(req.error);
-    });
-  },
-
-  async saveMessage(msg: any): Promise<void> {
-    const db = await openDB();
-    return new Promise((resolve, reject) => {
-      const tx = db.transaction("messages", "readwrite");
-      const store = tx.objectStore("messages");
-      const req = store.add({ ...msg, savedAt: Date.now() });
-      req.onsuccess = () => resolve();
-      req.onerror = () => reject(req.error);
-    });
-  },
-
-  async getMessages(limit = 50): Promise<any[]> {
-    const db = await openDB();
-    return new Promise((resolve, reject) => {
-      const tx = db.transaction("messages", "readonly");
-      const store = tx.objectStore("messages");
-      const req = store.openCursor(null, "prev");
-      const messages: any[] = [];
       req.onsuccess = () => {
-        const cursor = req.result;
-        if (!cursor || messages.length >= limit) {
-          resolve(messages.reverse());
-          return;
-        }
-        messages.push(cursor.value);
-        cursor.continue();
+        const result = req.result as MemoryRecord | undefined;
+        resolve(result ? (result.value as T) : null);
       };
       req.onerror = () => reject(req.error);
     });
-  },
+  }
 
-  async saveProject(name: string, code: string, language: string): Promise<void> {
+  async set<T>(key: string, value: T): Promise<void> {
     const db = await openDB();
     return new Promise((resolve, reject) => {
-      const tx = db.transaction("projects", "readwrite");
-      const store = tx.objectStore("projects");
-      const req = store.put({
-        id: `proj-${Date.now()}`,
-        name,
-        code,
-        language,
-        createdAt: Date.now(),
-        updatedAt: Date.now(),
-      });
+      const tx = db.transaction("memory", "readwrite");
+      const store = tx.objectStore("memory");
+      const req = store.put({ key, value, updatedAt: Date.now() });
       req.onsuccess = () => resolve();
       req.onerror = () => reject(req.error);
     });
-  },
+  }
 
-  async getProjects(): Promise<any[]> {
+  async remove(key: string): Promise<void> {
+    const db = await openDB();
+    return new Promise((resolve, reject) => {
+      const tx = db.transaction("memory", "readwrite");
+      const store = tx.objectStore("memory");
+      const req = store.delete(key);
+      req.onsuccess = () => resolve();
+      req.onerror = () => reject(req.error);
+    });
+  }
+
+  async getProfile<T = unknown>(key: string): Promise<T | null> {
+    return this.get<T>(`profile:${key}`);
+  }
+
+  async setProfile<T>(key: string, value: T): Promise<void> {
+    return this.set(`profile:${key}`, value);
+  }
+
+  async getDashboardPrefs(): Promise<DashboardPrefs> {
+    const prefs = await this.get<DashboardPrefs>("dashboard:prefs");
+    return prefs ?? { ...defaultDashboardPrefs };
+  }
+
+  async setDashboardPrefs(prefs: DashboardPrefs): Promise<void> {
+    return this.set("dashboard:prefs", prefs);
+  }
+
+  async getProjects(): Promise<Project[]> {
     const db = await openDB();
     return new Promise((resolve, reject) => {
       const tx = db.transaction("projects", "readonly");
       const store = tx.objectStore("projects");
       const req = store.getAll();
-      req.onsuccess = () => resolve(req.result);
+      req.onsuccess = () => resolve(req.result as Project[]);
       req.onerror = () => reject(req.error);
     });
-  },
+  }
 
-  async saveMilestone(title: string, description: string): Promise<void> {
+  async addProject(project: Omit<Project, "id">): Promise<number> {
     const db = await openDB();
     return new Promise((resolve, reject) => {
-      const tx = db.transaction("milestones", "readwrite");
-      const store = tx.objectStore("milestones");
-      const req = store.add({
-        title,
-        description,
-        date: Date.now(),
-      });
+      const tx = db.transaction("projects", "readwrite");
+      const store = tx.objectStore("projects");
+      const req = store.add({ ...project, updatedAt: Date.now() });
+      req.onsuccess = () => resolve(req.result as number);
+      req.onerror = () => reject(req.error);
+    });
+  }
+
+  async updateProject(id: number, updates: Partial<Project>): Promise<void> {
+    const db = await openDB();
+    return new Promise((resolve, reject) => {
+      const tx = db.transaction("projects", "readwrite");
+      const store = tx.objectStore("projects");
+      const req = store.get(id);
+      req.onsuccess = () => {
+        const existing = req.result as Project;
+        if (existing) {
+          const updated = { ...existing, ...updates, updatedAt: Date.now() };
+          store.put(updated);
+        }
+        resolve();
+      };
+      req.onerror = () => reject(req.error);
+    });
+  }
+
+  async deleteProject(id: number): Promise<void> {
+    const db = await openDB();
+    return new Promise((resolve, reject) => {
+      const tx = db.transaction("projects", "readwrite");
+      const store = tx.objectStore("projects");
+      const req = store.delete(id);
       req.onsuccess = () => resolve();
       req.onerror = () => reject(req.error);
     });
-  },
+  }
 
-  async getMilestones(): Promise<any[]> {
+  async getMessages(): Promise<ChatMessage[]> {
     const db = await openDB();
     return new Promise((resolve, reject) => {
-      const tx = db.transaction("milestones", "readonly");
-      const store = tx.objectStore("milestones");
+      const tx = db.transaction("messages", "readonly");
+      const store = tx.objectStore("messages");
       const req = store.getAll();
-      req.onsuccess = () => resolve(req.result.reverse());
+      req.onsuccess = () => resolve(req.result as ChatMessage[]);
       req.onerror = () => reject(req.error);
     });
- },
+  }
 
-  async getDashboardPrefs(): Promise<DashboardPrefs> {
-    const prefs = await this.getProfile("dashboard_prefs");
-    return prefs || defaultDashboardPrefs;
-  },
+  async addMessage(message: Omit<ChatMessage, "id">): Promise<number> {
+    const db = await openDB();
+    return new Promise((resolve, reject) => {
+      const tx = db.transaction("messages", "readwrite");
+      const store = tx.objectStore("messages");
+      const req = store.add(message);
+      req.onsuccess = () => resolve(req.result as number);
+      req.onerror = () => reject(req.error);
+    });
+  }
 
-  async setDashboardPrefs(prefs: DashboardPrefs): Promise<void> {
-    await this.setProfile("dashboard_prefs", prefs);
-  },
-};
+  async clearMessages(): Promise<void> {
+    const db = await openDB();
+    return new Promise((resolve, reject) => {
+      const tx = db.transaction("messages", "readwrite");
+      const store = tx.objectStore("messages");
+      const req = store.clear();
+      req.onsuccess = () => resolve();
+      req.onerror = () => reject(req.error);
+    });
+  }
+
+  // ===== File operations =====
+  async getFiles(): Promise<FileRecord[]> {
+    const db = await openDB();
+    return new Promise((resolve, reject) => {
+      const tx = db.transaction("files", "readonly");
+      const store = tx.objectStore("files");
+      const req = store.getAll();
+      req.onsuccess = () => resolve(req.result as FileRecord[]);
+      req.onerror = () => reject(req.error);
+    });
+  }
+
+  async addFile(file: Omit<FileRecord, "id">): Promise<number> {
+    const db = await openDB();
+    return new Promise((resolve, reject) => {
+      const tx = db.transaction("files", "readwrite");
+      const store = tx.objectStore("files");
+      const req = store.add(file);
+      req.onsuccess = () => resolve(req.result as number);
+      req.onerror = () => reject(req.error);
+    });
+  }
+
+  async deleteFile(id: number): Promise<void> {
+    const db = await openDB();
+    return new Promise((resolve, reject) => {
+      const tx = db.transaction("files", "readwrite");
+      const store = tx.objectStore("files");
+      const req = store.delete(id);
+      req.onsuccess = () => resolve();
+      req.onerror = () => reject(req.error);
+    });
+  }
+}
+
+export const memory = new MemoryStore();

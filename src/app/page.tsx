@@ -99,7 +99,7 @@ export default function Home() {
   const views: Record<View, React.ReactNode> = {
     dashboard: <Dashboard onNavigate={navigate} onOpenLesson={() => showToast("Lesson feature coming soon!", "info")} />,
     chat: <ChatWindow onClose={() => navigate("universe")} />,
-    workspace: <WorkspaceView showToast={showToast} onClose={() => navigate("universe")} />,
+    workspace: <WorkspaceView showToast={(msg, type) => showToast(msg, type)} onClose={() => navigate("universe")} />,
     universe: <Universe3D />,
     constellation: <ConstellationMap />,
   };

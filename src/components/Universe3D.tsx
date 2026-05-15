@@ -67,11 +67,12 @@ const ARCS: ArcData[] = [
 ];
 
 const TEX = {
-  day: "https://unpkg.com/three-globe/example/img/earth-blue-marble.jpg",
-  night: "https://unpkg.com/three-globe/example/img/earth-night.jpg",
-  cloud: "https://unpkg.com/three-globe/example/img/earth-clouds.png",
-  moon: "https://unpkg.com/three-globe/example/img/moon.jpg",
-  stars: "https://unpkg.com/three-globe/example/img/night-sky.png",
+  day:    "https://cdn.jsdelivr.net/npm/three-globe@2.45.2/example/img/earth-blue-marble.jpg",
+  night:  "https://cdn.jsdelivr.net/npm/three-globe@2.45.2/example/img/earth-night.jpg",
+  cloud:  "https://cdn.jsdelivr.net/npm/three-globe@2.45.2/example/img/earth-clouds.png",
+  bump:   "https://cdn.jsdelivr.net/npm/three-globe@2.45.2/example/img/earth-topology.png",
+  moon:   "https://cdn.jsdelivr.net/npm/three-globe@2.45.2/example/img/moon.jpg",
+  stars:  "https://cdn.jsdelivr.net/npm/three-globe@2.45.2/example/img/night-sky.png",
 };
 
 /* ─── UTILITIES ─── */

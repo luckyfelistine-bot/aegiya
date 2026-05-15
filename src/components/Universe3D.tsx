@@ -6,7 +6,7 @@ import { OrbitControls, Html, useTexture } from "@react-three/drei";
 import * as THREE from "three";
 
 /* ═══════════════════════════════════════════════════════════════
-   BYEOL UNIVERSE 3D v6.0 — For Dal 💕
+   BYEOL UNIVERSE 3D v6.1 — For Dal 💕
    Real textures. Real arcs. Real sky. Clean screen. Living world.
    ═══════════════════════════════════════════════════════════════ */
 
@@ -263,8 +263,8 @@ function EarthMesh({
   settings: Settings;
   rotationOffset: number;
 }) {
-  const meshRef = useRef<THREE.Mesh>(null);
-  const materialRef = useRef<THREE.ShaderMaterial>(null);
+  const meshRef = useRef<<THREE.Mesh>(null);
+  const materialRef = useRef<<THREE.ShaderMaterial>(null);
 
   const uniforms = useMemo(
     () => ({
@@ -284,7 +284,7 @@ function EarthMesh({
     if (textures.day) uniforms.dayTexture.value = textures.day;
     if (textures.night) uniforms.nightTexture.value = textures.night;
     if (textures.cloud) uniforms.cloudTexture.value = textures.cloud;
-  }, [textures]);
+  }, [textures, uniforms]);
 
   useFrame((state) => {
     uniforms.sunDirection.value.copy(sunDirection);
@@ -312,7 +312,7 @@ function EarthMesh({
 }
 
 function AtmosphereMesh({ sunDirection, settings }: { sunDirection: THREE.Vector3; settings: Settings }) {
-  const materialRef = useRef<THREE.ShaderMaterial>(null);
+  const materialRef = useRef<<THREE.ShaderMaterial>(null);
   const uniforms = useMemo(
     () => ({
       sunDirection: { value: sunDirection },
@@ -343,7 +343,7 @@ function AtmosphereMesh({ sunDirection, settings }: { sunDirection: THREE.Vector
 }
 
 function CloudMesh({ texture, settings }: { texture?: THREE.Texture; settings: Settings }) {
-  const meshRef = useRef<THREE.Mesh>(null);
+  const meshRef = useRef<<THREE.Mesh>(null);
 
   useFrame((state) => {
     if (meshRef.current) {
@@ -362,7 +362,7 @@ function CloudMesh({ texture, settings }: { texture?: THREE.Texture; settings: S
 }
 
 function MoonMesh({ position, texture }: { position: THREE.Vector3; texture?: THREE.Texture }) {
-  const meshRef = useRef<THREE.Mesh>(null);
+  const meshRef = useRef<<THREE.Mesh>(null);
 
   useFrame((state) => {
     if (meshRef.current) {
@@ -409,7 +409,7 @@ function SunMesh({ direction }: { direction: THREE.Vector3 }) {
 }
 
 function StarBackground({ texture }: { texture?: THREE.Texture }) {
-  const meshRef = useRef<THREE.Mesh>(null);
+  const meshRef = useRef<<THREE.Mesh>(null);
 
   useFrame((state) => {
     if (meshRef.current) {
@@ -429,7 +429,7 @@ function StarBackground({ texture }: { texture?: THREE.Texture }) {
 
 /* ─── ARCS — Our Journey curved paths ─── */
 function ArcLine({ arc, settings }: { arc: ArcData; settings: Settings }) {
-  const materialRef = useRef<THREE.MeshBasicMaterial>(null);
+  const materialRef = useRef<<THREE.MeshBasicMaterial>(null);
 
   const geometry = useMemo(() => {
     const start = latLonToVector3(arc.startLat, arc.startLon, EARTH_RADIUS + 0.05);
@@ -465,8 +465,8 @@ function ArcLine({ arc, settings }: { arc: ArcData; settings: Settings }) {
 
 /* ─── RIPPLE RING ─── */
 function RippleRing({ position, color, onDone }: { position: THREE.Vector3; color: string; onDone: () => void }) {
-  const meshRef = useRef<THREE.Mesh>(null);
-  const materialRef = useRef<THREE.MeshBasicMaterial>(null);
+  const meshRef = useRef<<THREE.Mesh>(null);
+  const materialRef = useRef<<THREE.MeshBasicMaterial>(null);
   const startTime = useRef(Date.now());
 
   useFrame(() => {
@@ -641,7 +641,7 @@ function NairobiScene({ zoomLevel }: { zoomLevel: number }) {
   const buildingCount = 120;
   const buildingGeo = useMemo(() => new THREE.BoxGeometry(1, 1, 1), []);
   const buildingMat = useMemo(() => new THREE.MeshStandardMaterial({ roughness: 0.8 }), []);
-  const meshRef = useRef<THREE.InstancedMesh>(null);
+  const meshRef = useRef<<THREE.InstancedMesh>(null);
 
   useEffect(() => {
     if (!meshRef.current) return;
@@ -711,7 +711,7 @@ function NairobiScene({ zoomLevel }: { zoomLevel: number }) {
 }
 
 function ParkCircle({ position, target }: { position: THREE.Vector3; target: THREE.Vector3 }) {
-  const ref = useRef<THREE.Mesh>(null);
+  const ref = useRef<<THREE.Mesh>(null);
   useEffect(() => {
     if (ref.current) ref.current.lookAt(target);
   }, [target]);
@@ -757,7 +757,7 @@ function EmojiPeople({ zoomLevel }: { zoomLevel: number }) {
     });
   }, [people]);
 
-  const groupRef = useRef<THREE.Group>(null);
+  const groupRef = useRef<<THREE.Group>(null);
 
   useFrame((state) => {
     if (!groupRef.current) return;
@@ -792,7 +792,7 @@ function EmojiPeople({ zoomLevel }: { zoomLevel: number }) {
 
 /* ─── SHOOTING STARS with trails ─── */
 function ShootingStars({ birthdayMode }: { birthdayMode: boolean }) {
-  const groupRef = useRef<THREE.Group>(null);
+  const groupRef = useRef<<THREE.Group>(null);
   const starsRef = useRef<{ mesh: THREE.Mesh; velocity: THREE.Vector3; life: number; maxLife: number }[]>([]);
 
   const spawnStar = useCallback(() => {
@@ -845,59 +845,29 @@ function ShootingStars({ birthdayMode }: { birthdayMode: boolean }) {
 /* ─── LOADING FALLBACK ─── */
 function LoadingFallback() {
   return (
-    <div style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", height: "100vh", gap: 20, color: "var(--lunar)" }}>
-      <div className="loading-spinner" />
+    <div style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", height: "100vh", gap: 20, color: "#a0a0b0" }}>
+      <div style={{ width: 40, height: 40, border: "3px solid rgba(255,255,255,0.1)", borderTopColor: "#c084fc", borderRadius: "50%", animation: "spin 1s linear infinite" }} />
       <p>Loading Universe for Dal...</p>
+      <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
     </div>
   );
 }
 
-/* ─── MAIN EXPORT ─── */
-export default function Universe3D() {
-  const [kenyaTime, setKenyaTime] = useState<Date>(getKenyaTime());
-  const [zoomLevel, setZoomLevel] = useState(1);
-  const [settings, setSettings] = useState<Settings>({
-    dayNightShader: true,
-    cityLights: true,
-    clouds: true,
-    atmosphere: true,
-    autoReturn: true,
-    labels: true,
-    timeInfo: false,
-    sunMoonInfo: false,
-    arcs: true,
-  });
-  const [settingsOpen, setSettingsOpen] = useState(false);
-  const [ripples, setRipples] = useState<{ id: number; position: THREE.Vector3; color: string }[]>([]);
-  const [isInteracting, setIsInteracting] = useState(false);
-  const controlsRef = useRef<any>(null);
-  const returnTimerRef = useRef<NodeJS.Timeout | null>(null);
-
-  // Kenya time
-  useEffect(() => {
-    const interval = setInterval(() => setKenyaTime(getKenyaTime()), 1000);
-    return () => clearInterval(interval);
-  }, []);
-
-  // Birthday mode
-  const birthdayMode = useMemo(() => {
-    const k = kenyaTime;
-    return k.getMonth() === 5 && k.getDate() === 1;
-  }, [kenyaTime]);
-
-  // Sun/moon info
-  const sunInfo = useMemo(() => {
-    const { altitude, azimuth } = getSunAltitudeAzimuth(kenyaTime, NAIROBI.lat, NAIROBI.lon);
-    let status = "Night";
-    if (altitude > 5) status = "Day";
-    else if (altitude > -5) status = altitude > 0 ? "Sunset" : "Twilight";
-    else if (altitude > -12) status = "Nautical Twilight";
-    return { altitude, azimuth, status };
-  }, [kenyaTime]);
-
-  const moonInfo = useMemo(() => getMoonPhaseInfo(kenyaTime), [kenyaTime]);
-
-  // Textures
+/* ─── SCENE COMPONENT (inside Canvas) ─── */
+function UniverseScene({
+  settings,
+  zoomLevel,
+  kenyaTime,
+  ripples,
+  onRippleDone,
+}: {
+  settings: Settings;
+  zoomLevel: number;
+  kenyaTime: Date;
+  ripples: { id: number; position: THREE.Vector3; color: string }[];
+  onRippleDone: (id: number) => void;
+}) {
+  // Textures — loaded INSIDE Canvas
   const dayTex = useTexture(TEX.day);
   const nightTex = useTexture(TEX.night);
   const cloudTex = useTexture(TEX.cloud);
@@ -922,16 +892,117 @@ export default function Universe3D() {
     return ((earthRotation - 37) % 360) / 360;
   }, [kenyaTime]);
 
+  // Birthday mode
+  const birthdayMode = useMemo(() => {
+    const k = kenyaTime;
+    return k.getMonth() === 5 && k.getDate() === 1;
+  }, [kenyaTime]);
+
+  const config = ZOOM_LEVELS[zoomLevel];
+
+  return (
+    <>
+      <ambientLight intensity={0.15} />
+      <directionalLight position={sunDir.clone().multiplyScalar(20).toArray()} intensity={1.8} color="#fff8e7" />
+      <pointLight position={[-10, -5, -10]} intensity={0.4} color="#8b5cf6" distance={50} />
+      <pointLight position={[0, -10, 5]} intensity={0.3} color="#00d4ff" distance={30} />
+
+      <StarBackground texture={starsTex} />
+      <EarthMesh textures={textures} sunDirection={sunDir} settings={settings} rotationOffset={rotationOffset} />
+      <AtmosphereMesh sunDirection={sunDir} settings={settings} />
+      <CloudMesh texture={cloudTex} settings={settings} />
+      <MoonMesh position={moonPos} texture={moonTex} />
+      <SunMesh direction={sunDir} />
+
+      {/* Arcs */}
+      {config.showArcs && ARCS.map((arc, i) => (
+        <ArcLine key={i} arc={arc} settings={settings} />
+      ))}
+
+      {/* Ripples */}
+      {ripples.map((ripple) => (
+        <RippleRing
+          key={ripple.id}
+          position={ripple.position}
+          color={ripple.color}
+          onDone={() => onRippleDone(ripple.id)}
+        />
+      ))}
+
+      <CityMarkers cities={CITIES} zoomLevel={zoomLevel} settings={settings} />
+      <FamilyMarkers zoomLevel={zoomLevel} />
+      <Graticule zoomLevel={zoomLevel} />
+      <NairobiScene zoomLevel={zoomLevel} />
+      <EmojiPeople zoomLevel={zoomLevel} />
+      <ShootingStars birthdayMode={birthdayMode} />
+    </>
+  );
+}
+
+/* ─── MAIN EXPORT ─── */
+export default function Universe3D() {
+  const [isClient, setIsClient] = useState(false);
+  const [kenyaTime, setKenyaTime] = useState<Date>(getKenyaTime());
+  const [zoomLevel, setZoomLevel] = useState(1);
+  const [settings, setSettings] = useState<<Settings>({
+    dayNightShader: true,
+    cityLights: true,
+    clouds: true,
+    atmosphere: true,
+    autoReturn: true,
+    labels: true,
+    timeInfo: false,
+    sunMoonInfo: false,
+    arcs: true,
+  });
+  const [settingsOpen, setSettingsOpen] = useState(false);
+  const [ripples, setRipples] = useState<{ id: number; position: THREE.Vector3; color: string }[]>([]);
+  const [isInteracting, setIsInteracting] = useState(false);
+  const controlsRef = useRef<any>(null);
+  const returnTimerRef = useRef<<ReturnType<<typeof setTimeout> | null>(null);
+
+  // CRITICAL FIX: Only render Canvas after client mount
+  useEffect(() => {
+    setIsClient(true);
+  }, []);
+
+  // Kenya time
+  useEffect(() => {
+    const interval = setInterval(() => setKenyaTime(getKenyaTime()), 1000);
+    return () => clearInterval(interval);
+  }, []);
+
+  // Sun/moon info
+  const sunInfo = useMemo(() => {
+    const { altitude, azimuth } = getSunAltitudeAzimuth(kenyaTime, NAIROBI.lat, NAIROBI.lon);
+    let status = "Night";
+    if (altitude > 5) status = "Day";
+    else if (altitude > -5) status = altitude > 0 ? "Sunset" : "Twilight";
+    else if (altitude > -12) status = "Nautical Twilight";
+    return { altitude, azimuth, status };
+  }, [kenyaTime]);
+
+  const moonInfo = useMemo(() => getMoonPhaseInfo(kenyaTime), [kenyaTime]);
+
+  // Birthday mode
+  const birthdayMode = useMemo(() => {
+    const k = kenyaTime;
+    return k.getMonth() === 5 && k.getDate() === 1;
+  }, [kenyaTime]);
+
   // Zoom
   const handleZoom = useCallback((delta: number) => {
     setZoomLevel((prev) => Math.max(0, Math.min(3, prev + delta)));
   }, []);
 
-  // Ripple on click
-  const handleEarthClick = useCallback((e: any) => {
-    if (!e.point) return;
+  // Ripple management
+  const handleAddRipple = useCallback((position: THREE.Vector3) => {
     const id = Date.now() + Math.random();
-    setRipples((prev) => [...prev, { id, position: e.point.clone(), color: "#c084fc" }]);
+    setRipples((prev) => [...prev, { id, position, color: "#c084fc" }]);
+  }, []);
+
+  const handleRippleDone = useCallback((id: number) => {
+    setRipples((prev) => prev.filter((r) => r.id !== id));
   }, []);
 
   // Auto-return
@@ -980,10 +1051,19 @@ export default function Universe3D() {
 
   const config = ZOOM_LEVELS[zoomLevel];
 
+  // If not yet client-side, show the loading fallback (no Canvas, no R3F hooks)
+  if (!isClient) {
+    return (
+      <div className="universe-view" style={{ width: "100vw", height: "100vh", background: "#050510" }}>
+        <LoadingFallback />
+      </div>
+    );
+  }
+
   return (
     <div className="universe-view">
       {/* 3D Canvas */}
-      <div className="universe-canvas-container">
+      <div className="universe-canvas-container" style={{ width: "100%", height: "100%" }}>
         <Suspense fallback={<LoadingFallback />}>
           <Canvas
             camera={{
@@ -1009,50 +1089,24 @@ export default function Universe3D() {
               rotateSpeed={0.6}
               zoomSpeed={0.8}
             />
-            <ambientLight intensity={0.15} />
-            <directionalLight position={sunDir.clone().multiplyScalar(20).toArray()} intensity={1.8} color="#fff8e7" />
-            <pointLight position={[-10, -5, -10]} intensity={0.4} color="#8b5cf6" distance={50} />
-            <pointLight position={[0, -10, 5]} intensity={0.3} color="#00d4ff" distance={30} />
-
-            <StarBackground texture={starsTex} />
-            <EarthMesh textures={textures} sunDirection={sunDir} settings={settings} rotationOffset={rotationOffset} />
-            <AtmosphereMesh sunDirection={sunDir} settings={settings} />
-            <CloudMesh texture={cloudTex} settings={settings} />
-            <MoonMesh position={moonPos} texture={moonTex} />
-            <SunMesh direction={sunDir} />
-
-            {/* Arcs */}
-            {config.showArcs && ARCS.map((arc, i) => (
-              <ArcLine key={i} arc={arc} settings={settings} />
-            ))}
-
-            {/* Ripples */}
-            {ripples.map((ripple) => (
-              <RippleRing
-                key={ripple.id}
-                position={ripple.position}
-                color={ripple.color}
-                onDone={() => setRipples((prev) => prev.filter((r) => r.id !== ripple.id))}
-              />
-            ))}
-
-            <CityMarkers cities={CITIES} zoomLevel={zoomLevel} settings={settings} />
-            <FamilyMarkers zoomLevel={zoomLevel} />
-            <Graticule zoomLevel={zoomLevel} />
-            <NairobiScene zoomLevel={zoomLevel} />
-            <EmojiPeople zoomLevel={zoomLevel} />
-            <ShootingStars birthdayMode={birthdayMode} />
+            <UniverseScene
+              settings={settings}
+              zoomLevel={zoomLevel}
+              kenyaTime={kenyaTime}
+              ripples={ripples}
+              onRippleDone={handleRippleDone}
+            />
           </Canvas>
         </Suspense>
       </div>
 
       {/* ─── CLEAN HEADER ─── */}
-      <div className="universe-header" style={{ minWidth: "auto", padding: "12px 18px" }}>
+      <div className="universe-header" style={{ position: "absolute", top: 16, left: 16, zIndex: 10, minWidth: "auto", padding: "12px 18px", background: "rgba(8,8,22,0.6)", backdropFilter: "blur(12px)", borderRadius: 16, border: "1px solid rgba(255,255,255,0.08)" }}>
         <div style={{ fontSize: "1.3rem", fontWeight: 700, fontFamily: "JetBrains Mono, monospace", color: "white", letterSpacing: "-0.02em" }}>
           {formatKenyaTime(kenyaTime)}
         </div>
         {settings.timeInfo && (
-          <div style={{ fontSize: "0.72rem", color: "var(--lunar)", marginTop: 4 }}>
+          <div style={{ fontSize: "0.72rem", color: "#a0a0b0", marginTop: 4 }}>
             {formatDate(kenyaTime)} · Nairobi, Kenya · UTC+3
           </div>
         )}
@@ -1060,13 +1114,13 @@ export default function Universe3D() {
           <>
             <div style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 8, paddingTop: 8, borderTop: "1px solid rgba(255,255,255,0.06)" }}>
               <span style={{ fontSize: "0.9rem" }}>☀️</span>
-              <span style={{ fontSize: "0.72rem", color: "var(--lunar)" }}>
+              <span style={{ fontSize: "0.72rem", color: "#a0a0b0" }}>
                 {sunInfo.status} · {sunInfo.altitude.toFixed(0)}°
               </span>
             </div>
             <div style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 4 }}>
               <span style={{ fontSize: "0.9rem" }}>🌙</span>
-              <span style={{ fontSize: "0.72rem", color: "var(--lunar)" }}>
+              <span style={{ fontSize: "0.72rem", color: "#a0a0b0" }}>
                 {moonInfo.phase} · {moonInfo.illum.toFixed(0)}%
               </span>
             </div>
@@ -1080,12 +1134,11 @@ export default function Universe3D() {
       </div>
 
       {/* ─── SETTINGS DROPDOWN ─── */}
-      <div className="universe-controls">
+      <div className="universe-controls" style={{ position: "absolute", top: 16, right: 16, zIndex: 10 }}>
         <div style={{ position: "relative" }}>
           <button
-            className="action-btn"
             onClick={() => setSettingsOpen(!settingsOpen)}
-            style={{ width: 38, height: 38, borderRadius: "50%", padding: 0, justifyContent: "center", fontSize: "1.1rem" }}
+            style={{ width: 38, height: 38, borderRadius: "50%", padding: 0, display: "flex", alignItems: "center", justifyContent: "center", fontSize: "1.1rem", background: "rgba(8,8,22,0.6)", backdropFilter: "blur(12px)", border: "1px solid rgba(255,255,255,0.08)", color: "white", cursor: "pointer" }}
           >
             ⚙️
           </button>
@@ -1108,7 +1161,7 @@ export default function Universe3D() {
                 boxShadow: "0 16px 48px rgba(0,0,0,0.5)",
               }}
             >
-              <div style={{ fontSize: "0.65rem", textTransform: "uppercase", letterSpacing: "0.08em", color: "var(--lunar)" }}>
+              <div style={{ fontSize: "0.65rem", textTransform: "uppercase", letterSpacing: "0.08em", color: "#a0a0b0" }}>
                 Settings
               </div>
               {[
@@ -1122,7 +1175,7 @@ export default function Universe3D() {
                 { key: "timeInfo" as keyof Settings, icon: "📅", label: "Show Date" },
                 { key: "sunMoonInfo" as keyof Settings, icon: "🌓", label: "Sun & Moon Info" },
               ].map((item) => (
-                <div key={item.key} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", fontSize: "0.82rem", color: "var(--stardust)" }}>
+                <div key={item.key} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", fontSize: "0.82rem", color: "#d0d0e0" }}>
                   <span style={{ display: "flex", alignItems: "center", gap: 8 }}>
                     <span>{item.icon}</span>
                     {item.label}
@@ -1161,34 +1214,32 @@ export default function Universe3D() {
       </div>
 
       {/* ─── BOTTOM ZOOM CONTROLS ─── */}
-      <div className="universe-actions">
+      <div className="universe-actions" style={{ position: "absolute", bottom: 24, left: "50%", transform: "translateX(-50%)", zIndex: 10, display: "flex", gap: 12, alignItems: "center" }}>
         <div style={{ display: "flex", alignItems: "center", gap: 10, background: "rgba(0,0,0,0.5)", backdropFilter: "blur(12px)", border: "1px solid rgba(255,255,255,0.08)", borderRadius: 24, padding: "6px 14px" }}>
           <button
-            className="action-btn"
             onClick={() => handleZoom(-1)}
-            style={{ width: 32, height: 32, borderRadius: "50%", padding: 0, justifyContent: "center", fontSize: "1.1rem", fontWeight: 700 }}
+            style={{ width: 32, height: 32, borderRadius: "50%", padding: 0, display: "flex", alignItems: "center", justifyContent: "center", fontSize: "1.1rem", fontWeight: 700, background: "rgba(255,255,255,0.08)", border: "1px solid rgba(255,255,255,0.1)", color: "white", cursor: "pointer" }}
           >
             −
           </button>
           <div style={{ display: "flex", flexDirection: "column", alignItems: "center", minWidth: 90 }}>
-            <span style={{ fontSize: "0.68rem", color: "var(--lunar)" }}>Zoom</span>
+            <span style={{ fontSize: "0.68rem", color: "#a0a0b0" }}>Zoom</span>
             <span style={{ fontSize: "0.8rem", color: "white", fontWeight: 600 }}>{config.name}</span>
           </div>
           <button
-            className="action-btn"
             onClick={() => handleZoom(1)}
-            style={{ width: 32, height: 32, borderRadius: "50%", padding: 0, justifyContent: "center", fontSize: "1.1rem", fontWeight: 700 }}
+            style={{ width: 32, height: 32, borderRadius: "50%", padding: 0, display: "flex", alignItems: "center", justifyContent: "center", fontSize: "1.1rem", fontWeight: 700, background: "rgba(255,255,255,0.08)", border: "1px solid rgba(255,255,255,0.1)", color: "white", cursor: "pointer" }}
           >
             +
           </button>
         </div>
 
-        <button className="action-btn" onClick={() => setZoomLevel(3)}>
+        <button onClick={() => setZoomLevel(3)} style={{ display: "flex", alignItems: "center", gap: 6, padding: "8px 14px", borderRadius: 20, background: "rgba(255,107,157,0.15)", border: "1px solid rgba(255,107,157,0.25)", color: "#ff6b9d", fontSize: "0.85rem", fontWeight: 600, cursor: "pointer", backdropFilter: "blur(8px)" }}>
           <span>💕</span>
           <span>Family</span>
         </button>
 
-        <button className="action-btn" onClick={() => setZoomLevel(0)}>
+        <button onClick={() => setZoomLevel(0)} style={{ display: "flex", alignItems: "center", gap: 6, padding: "8px 14px", borderRadius: 20, background: "rgba(255,255,255,0.08)", border: "1px solid rgba(255,255,255,0.1)", color: "white", fontSize: "0.85rem", fontWeight: 600, cursor: "pointer", backdropFilter: "blur(8px)" }}>
           <span>🌌</span>
           <span>Space</span>
         </button>

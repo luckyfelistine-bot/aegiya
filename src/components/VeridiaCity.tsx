@@ -1,8 +1,13 @@
 "use client";
 
-import { useRef, useEffect, useState } from "react";
+import { useRef, useEffect, useState, useCallback } from "react";
 import * as THREE from "three";
 import { OrbitControls } from "three/examples/jsm/controls/OrbitControls.js";
+
+/* ═══════════════════════════════════════════════════════════════
+   VERIDIA CITY — A Love Letter in Code 💌
+   Built for: The One I Want to Spend My Life With
+   ═══════════════════════════════════════════════════════════════ */
 
 export default function VeridiaCity() {
   const mountRef = useRef<HTMLDivElement>(null);
@@ -10,14 +15,70 @@ export default function VeridiaCity() {
   const dateRef = useRef<HTMLDivElement>(null);
   const [loading, setLoading] = useState(true);
 
+  // ─── Settings State ───
+  const [showSettings, setShowSettings] = useState(false);
+  const [timeSpeed, setTimeSpeed] = useState(1); // 0.5 = slow, 1 = normal, 2 = fast, 5 = super fast
+  const [paused, setPaused] = useState(false);
+  const [showFamily, setShowFamily] = useState(true);
+  const [showCars, setShowCars] = useState(true);
+  const [showPedestrians, setShowPedestrians] = useState(true);
+  const [showSchoolKids, setShowSchoolKids] = useState(true);
+  const [shadowQuality, setShadowQuality] = useState<"low" | "medium" | "high">("medium");
+  const [fogDensity, setFogDensity] = useState(1);
+  const [cameraHeight, setCameraHeight] = useState(45);
+  const [loveMessage, setLoveMessage] = useState("For My Love — Forever & Always 💕");
+  const [showSettings, setShowSettings] = useState(false);
+  const [showDedication, setShowDedication] = useState(true);
+
+  const [simSpeed, setSimSpeed] = useState(1);
+  const [isNightMode, setIsNightMode] = useState(false);
+  const [isDayMode, setIsDayMode] = useState(false);
+  const [shadowsEnabled, setShadowsEnabled] = useState(true);
+  const [fogEnabled, setFogEnabled] = useState(true);
+  const [pedestriansEnabled, setPedestriansEnabled] = useState(true);
+  const [carsEnabled, setCarsEnabled] = useState(true);
+  const [familyAnimEnabled, setFamilyAnimEnabled] = useState(true);
+  const [showFPS, setShowFPS] = useState(false);
+
+  const settingsRef = useRef({
+    simSpeed: 1, isNightMode: false, isDayMode: false,
+    shadowsEnabled: true, fogEnabled: true,
+    pedestriansEnabled: true, carsEnabled: true,
+    familyAnimEnabled: true, showFPS: false,
+  });
+
+  useEffect(() => {
+    settingsRef.current = {
+      simSpeed, isNightMode, isDayMode, shadowsEnabled, fogEnabled,
+      pedestriansEnabled, carsEnabled, familyAnimEnabled, showFPS,
+    };
+  }, [simSpeed, isNightMode, isDayMode, shadowsEnabled, fogEnabled, pedestriansEnabled, carsEnabled, familyAnimEnabled, showFPS]);
+
+  const fpsRef = useRef(0);
+  const fpsDisplayRef = useRef<HTMLDivElement>(null);
+
+  // Refs for settings that change frequently (read by animation loop)
+  const settingsRef = useRef({
+    timeSpeed,
+    paused,
+    showFamily,
+    showCars,
+    showPedestrians,
+    showSchoolKids,
+    fogDensity,
+  });
+
+  // Update refs when settings change
+  useEffect(() => {
+    settingsRef.current = { timeSpeed, paused, showFamily, showCars, showPedestrians, showSchoolKids, fogDensity };
+  }, [timeSpeed, paused, showFamily, showCars, showPedestrians, showSchoolKids, fogDensity]);
+
   useEffect(() => {
     const container = mountRef.current;
     if (!container) return;
 
-    // ==================== CONSTANTS ====================
     const ROAD_WIDTH = 8;
     const LANE_OFFSET = 1.8;
-    const BLOCK_SIZE = 32;
     const ROAD_CENTERS = [-60, -20, 20, 60];
     const CITY_MIN = -80;
     const CITY_MAX = 80;
@@ -26,19 +87,28 @@ export default function VeridiaCity() {
     const HOUSE_H = 3.5;
     const DAY_SECONDS = 90;
 
-    // ==================== SCENE ====================
+    const sharedGeo = {
+      box: new THREE.BoxGeometry(1, 1, 1),
+      sphere: new THREE.SphereGeometry(1, 8, 6),
+      cyl: new THREE.CylinderGeometry(1, 1, 1, 8),
+    };
+
     const scene = new THREE.Scene();
     scene.background = new THREE.Color(0x87ceeb);
-    scene.fog = new THREE.Fog(0x87ceeb, 120, 350);
+    scene.fog = new THREE.Fog(0x87ceeb, 120 * settingsRef.current.fogDensity, 350 * settingsRef.current.fogDensity);
+    scene.autoUpdate = false;
 
     const camera = new THREE.PerspectiveCamera(50, container.clientWidth / container.clientHeight, 0.1, 1000);
-    camera.position.set(50, 45, 50);
+    camera.position.set(50, cameraHeight, 50);
+    camera.matrixAutoUpdate = false;
+    camera.updateMatrix();
 
-    const renderer = new THREE.WebGLRenderer({ antialias: true });
+    const renderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: "high-performance" });
     renderer.setSize(container.clientWidth, container.clientHeight);
-    renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+    renderer.setPixelRatio(Math.min(window.devicePixelRatio, 1.5));
     renderer.shadowMap.enabled = true;
     renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+    renderer.info.autoReset = false;
     container.appendChild(renderer.domElement);
 
     const controls = new OrbitControls(camera, renderer.domElement);
@@ -50,15 +120,16 @@ export default function VeridiaCity() {
     controls.target.set(0, 0, 0);
     controls.zoomToCursor = true;
     controls.screenSpacePanning = true;
+    controls.autoRotate = true;
+    controls.autoRotateSpeed = 0.5;
 
-    // ==================== LIGHTS ====================
     const ambientLight = new THREE.AmbientLight(0xffffff, 0.45);
     scene.add(ambientLight);
 
     const sunLight = new THREE.DirectionalLight(0xfff5e6, 1.3);
     sunLight.position.set(60, 90, 40);
     sunLight.castShadow = true;
-    sunLight.shadow.mapSize.set(2048, 2048);
+    sunLight.shadow.mapSize.set(1024, 1024);
     sunLight.shadow.camera.near = 0.5;
     sunLight.shadow.camera.far = 300;
     const S = 100;
@@ -69,7 +140,6 @@ export default function VeridiaCity() {
     sunLight.shadow.bias = -0.0005;
     scene.add(sunLight);
 
-    // ==================== MATERIALS ====================
     const M: Record<string, THREE.MeshStandardMaterial> = {
       road: new THREE.MeshStandardMaterial({ color: 0x2d2d2d, roughness: 0.95 }),
       roadLine: new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.5 }),
@@ -129,13 +199,14 @@ export default function VeridiaCity() {
       schoolRoof: new THREE.MeshStandardMaterial({ color: 0x8b4513, roughness: 0.85 }),
     };
 
-    // ==================== HELPERS ====================
     function box(w: number, h: number, d: number, mat: THREE.Material, x: number, y: number, z: number, cast = true, receive = true) {
-      const g = new THREE.BoxGeometry(w, h, d);
-      const m = new THREE.Mesh(g, mat);
+      const m = new THREE.Mesh(sharedGeo.box, mat);
+      m.scale.set(w, h, d);
       m.position.set(x, y, z);
       m.castShadow = cast;
       m.receiveShadow = receive;
+      m.matrixAutoUpdate = false;
+      m.updateMatrix();
       return m;
     }
 
@@ -147,17 +218,19 @@ export default function VeridiaCity() {
       m.rotation.z = rotZ;
       m.castShadow = true;
       m.receiveShadow = true;
+      m.matrixAutoUpdate = false;
+      m.updateMatrix();
       return m;
     }
 
-    // ==================== GROUND ====================
     const ground = new THREE.Mesh(new THREE.PlaneGeometry(300, 300), M.grass);
     ground.rotation.x = -Math.PI / 2;
     ground.position.y = -0.05;
     ground.receiveShadow = true;
+    ground.matrixAutoUpdate = false;
+    ground.updateMatrix();
     scene.add(ground);
 
-    // ==================== ROAD SYSTEM ====================
     const roads: any[] = [];
     const intersections: any[] = [];
 
@@ -195,7 +268,6 @@ export default function VeridiaCity() {
       });
     });
 
-    // ==================== BLOCK DEFINITIONS ====================
     function getBlockBounds(col: number, row: number) {
       const left = ROAD_CENTERS[col] + ROAD_WIDTH / 2;
       const right = ROAD_CENTERS[col + 1] - ROAD_WIDTH / 2;
@@ -204,15 +276,12 @@ export default function VeridiaCity() {
       return { left, right, bottom, top, cx: (left + right) / 2, cz: (bottom + top) / 2 };
     }
 
-    // ==================== HOUSE CREATOR ====================
     function createHouse(x: number, z: number, wallMat: THREE.Material, roofMat: THREE.Material) {
       const g = new THREE.Group();
       const w = HOUSE_W;
       const d = HOUSE_D;
       const h = HOUSE_H;
-
       g.add(box(w, h, d, wallMat, 0, h / 2, 0));
-
       const roofH = 1.2;
       const roofGeo = new THREE.ConeGeometry(Math.max(w, d) * 0.65, roofH, 4);
       const roof = new THREE.Mesh(roofGeo, roofMat);
@@ -220,10 +289,8 @@ export default function VeridiaCity() {
       roof.rotation.y = Math.PI / 4;
       roof.castShadow = true;
       g.add(roof);
-
       g.add(box(1.2, 2.0, 0.12, M.door, 0, 1.0, d / 2 + 0.06));
       g.add(box(1.6, 0.15, 0.8, M.sidewalk, 0, 0.075, d / 2 + 0.5));
-
       const winW = 1.2;
       const winH = 1.0;
       const winD = 0.08;
@@ -231,32 +298,30 @@ export default function VeridiaCity() {
       g.add(box(winW, winH, winD, M.window, 2.5, h / 2 + 0.3, d / 2 + 0.04));
       g.add(box(winW, winH, winD, M.window, -2.5, h / 2 + 0.3, -d / 2 - 0.04));
       g.add(box(winW, winH, winD, M.window, 2.5, h / 2 + 0.3, -d / 2 - 0.04));
-
       g.add(box(0.6, 1.2, 0.6, new THREE.MeshStandardMaterial({ color: 0x666666 }), w / 3, h + 0.6, -d / 4));
-
       g.position.set(x, 0, z);
       scene.add(g);
     }
 
-    // ==================== TREE CREATOR ====================
     function createTree(x: number, z: number, parent: THREE.Object3D = scene) {
+      const s = 0.7 + Math.random() * 0.4;
       const g = new THREE.Group();
       g.add(cylinder(0.15, 0.2, 1.8, 6, M.treeTrunk, 0, 0.9, 0));
-      const l1 = new THREE.Mesh(new THREE.SphereGeometry(1.3, 8, 6), M.treeLeaves);
+      const l1 = new THREE.Mesh(sharedGeo.sphere, M.treeLeaves);
+      l1.scale.set(1.3, 1.3, 1.3);
       l1.position.set(0, 2.4, 0);
       l1.castShadow = true;
       g.add(l1);
-      const l2 = new THREE.Mesh(new THREE.SphereGeometry(0.9, 8, 6), M.treeLeaves2);
+      const l2 = new THREE.Mesh(sharedGeo.sphere, M.treeLeaves2);
+      l2.scale.set(0.9, 0.9, 0.9);
       l2.position.set(0.3, 3.0, 0.2);
       l2.castShadow = true;
       g.add(l2);
       g.position.set(x, 0, z);
-      const s = 0.7 + Math.random() * 0.4;
       g.scale.set(s, s, s);
       parent.add(g);
     }
 
-    // ==================== PLACE HOUSES IN BLOCKS ====================
     const houseWallColors = [M.wallBeige, M.wallWhite, M.wallBrick, M.wallBlue, M.wallYellow];
     const houseRoofColors = [M.roof, M.roofDark, M.roofRed, M.roofBlue];
 
@@ -269,7 +334,6 @@ export default function VeridiaCity() {
       const rows = 2;
       const stepX = availW / cols;
       const stepZ = availD / rows;
-
       let placed = 0;
       for (let r = 0; r < rows && placed < count; r++) {
         for (let c = 0; c < cols && placed < count; c++) {
@@ -296,7 +360,6 @@ export default function VeridiaCity() {
       }
     }
 
-    // ==================== CENTRAL PARK ====================
     const parkBounds = getBlockBounds(1, 1);
     const parkGround = box(
       parkBounds.right - parkBounds.left,
@@ -324,7 +387,6 @@ export default function VeridiaCity() {
     bench.position.set(parkBounds.cx, 0, parkBounds.cz + 8);
     scene.add(bench);
 
-    // ==================== SCHOOL ====================
     const schoolBounds = getBlockBounds(1, 2);
     const sg = new THREE.Group();
     sg.add(box(18, 4.5, 10, M.schoolWall, 0, 2.25, 0));
@@ -358,17 +420,7 @@ export default function VeridiaCity() {
       gg.add(box(0.1, 2.2, 0.1, M.metal, -3.5, 1.1, 0));
       gg.add(box(0.1, 2.2, 0.1, M.metal, 3.5, 1.1, 0));
       gg.add(box(7.2, 0.1, 0.1, M.metal, 0, 2.2, 0));
-      gg.add(
-        box(
-          7.2,
-          2.2,
-          0.02,
-          new THREE.MeshStandardMaterial({ color: 0xffffff, transparent: true, opacity: 0.25 }),
-          0,
-          1.1,
-          0
-        )
-      );
+      gg.add(box(7.2, 2.2, 0.02, new THREE.MeshStandardMaterial({ color: 0xffffff, transparent: true, opacity: 0.25 }), 0, 1.1, 0));
       gg.position.set(gx, 0, gz);
       scene.add(gg);
     }
@@ -380,461 +432,8 @@ export default function VeridiaCity() {
     createTree(schoolBounds.cx - 14, schoolBounds.cz - 8);
     createTree(schoolBounds.cx + 14, schoolBounds.cz - 8);
 
-    // ==================== MANSION ====================
-    const mansBounds = getBlockBounds(2, 2);
-    const mx = mansBounds.cx;
-    const mz = mansBounds.cz;
-    const mg = new THREE.Group();
 
-    mg.add(box(14, 4, 10, M.wallBeige, 0, 2, 0));
-    mg.add(box(14, 3.5, 10, M.wallBeige, 0, 5.75, 0));
-    mg.add(box(15, 0.3, 11, M.roofDark, 0, 7.7, 0));
-
-    for (let i = -2; i <= 2; i++) {
-      mg.add(box(1.2, 1.8, 0.1, M.window, i * 2.5, 2.5, 5.05));
-      mg.add(box(1.2, 1.8, 0.1, M.window, i * 2.5, 2.5, -5.05));
-      mg.add(box(1.2, 1.5, 0.1, M.window, i * 2.5, 5.5, 5.05));
-    }
-
-    mg.add(box(1.6, 2.6, 0.12, M.door, 0, 1.3, 5.06));
-    mg.add(box(1.8, 0.1, 0.25, M.gold, 0, 2.65, 5.08));
-    mg.add(cylinder(0.05, 0.05, 0.12, 8, M.gold, 0.5, 1.3, 5.12));
-
-    mg.add(box(10, 3.2, 7, M.wallWhite, 11, 1.6, 1));
-    mg.add(box(10, 0.25, 7, M.roofDark, 11, 3.225, 1));
-    mg.add(box(5.5, 2.4, 0.12, M.metal, 11, 1.2, 4.56));
-    mg.add(box(6, 0.12, 10, M.sidewalk, 11, 0.06, 8));
-
-    mg.add(box(7, 0.3, 4.5, M.metal, -10, 0.15, 7));
-    mg.add(box(6.4, 0.25, 3.9, M.water, -10, 0.2, 7));
-
-    const fLeft = mansBounds.left + 1,
-      fRight = mansBounds.right - 1;
-    const fBot = mansBounds.bottom + 1,
-      fTop = mansBounds.top - 1;
-    for (let fx = fLeft; fx <= fRight; fx += 3) {
-      mg.add(cylinder(0.04, 0.04, 1.8, 4, M.fence, fx, 0.9, fBot));
-      mg.add(cylinder(0.04, 0.04, 1.8, 4, M.fence, fx, 0.9, fTop));
-    }
-    for (let fz = fBot; fz <= fTop; fz += 3) {
-      mg.add(cylinder(0.04, 0.04, 1.8, 4, M.fence, fLeft, 0.9, fz));
-      mg.add(cylinder(0.04, 0.04, 1.8, 4, M.fence, fRight, 0.9, fz));
-    }
-    mg.add(box(fRight - fLeft, 0.04, 0.04, M.fence, (fLeft + fRight) / 2, 1.5, fBot));
-    mg.add(box(fRight - fLeft, 0.04, 0.04, M.fence, (fLeft + fRight) / 2, 1.5, fTop));
-    mg.add(box(0.04, 0.04, fTop - fBot, M.fence, fLeft, 1.5, (fBot + fTop) / 2));
-    mg.add(box(0.04, 0.04, fTop - fBot, M.fence, fRight, 1.5, (fBot + fTop) / 2));
-
-    createTree(-8, -10, mg);
-    createTree(8, -10, mg);
-    createTree(-12, 4, mg);
-    createTree(16, -6, mg);
-    createTree(16, 10, mg);
-
-    mg.position.set(mx, 0, mz);
-    scene.add(mg);
-
-    // ==================== LUXURY CARS ====================
-    function createLuxuryCar(bodyMat: THREE.Material, x: number, z: number, rotY: number) {
-      const g = new THREE.Group();
-      g.add(box(2.0, 0.75, 4.8, bodyMat, 0, 0.75, 0));
-      g.add(box(2.05, 0.35, 4.9, bodyMat, 0, 0.35, 0));
-      g.add(box(1.7, 0.6, 2.4, M.glass, 0, 1.45, -0.2));
-      g.add(box(1.75, 0.06, 2.45, bodyMat, 0, 1.77, -0.2));
-      const wheelPos = [
-        [-1.0, 0.32, 1.5],
-        [1.0, 0.32, 1.5],
-        [-1.0, 0.32, -1.5],
-        [1.0, 0.32, -1.5],
-      ];
-      wheelPos.forEach((p) => {
-        const wg = new THREE.Group();
-        const tire = new THREE.Mesh(new THREE.CylinderGeometry(0.32, 0.32, 0.28, 16), M.wheel);
-        tire.rotation.z = Math.PI / 2;
-        wg.add(tire);
-        const rim = new THREE.Mesh(new THREE.CylinderGeometry(0.2, 0.2, 0.29, 12), M.rim);
-        rim.rotation.z = Math.PI / 2;
-        wg.add(rim);
-        wg.position.set(p[0], p[1], p[2]);
-        g.add(wg);
-      });
-      const hlGeo = new THREE.BoxGeometry(0.35, 0.15, 0.06);
-      const hl1 = new THREE.Mesh(hlGeo, M.headlight);
-      hl1.position.set(-0.6, 0.65, 2.42);
-      g.add(hl1);
-      const hl2 = new THREE.Mesh(hlGeo, M.headlight);
-      hl2.position.set(0.6, 0.65, 2.42);
-      g.add(hl2);
-      const tl1 = new THREE.Mesh(hlGeo, M.taillight);
-      tl1.position.set(-0.6, 0.65, -2.42);
-      g.add(tl1);
-      const tl2 = new THREE.Mesh(hlGeo, M.taillight);
-      tl2.position.set(0.6, 0.65, -2.42);
-      g.add(tl2);
-      g.position.set(x, 0, z);
-      g.rotation.y = rotY;
-      scene.add(g);
-      return g;
-    }
-
-    createLuxuryCar(M.carGold, mx + 11, mz + 6, 0.1);
-    createLuxuryCar(M.carBlack, mx + 11, mz + 10, -0.15);
-    createLuxuryCar(M.carRed, mx + 8, mz + 14, 0.05);
-
-    // ==================== FAMILY ====================
-    function createPerson(opts: any): any {
-      const g = new THREE.Group();
-      const { height = 1.75, shirtMat, pantsMat, hairMat, isFemale = false, isChild = false } = opts;
-      const scale = isChild ? 0.55 : 1.0;
-      const h = height * scale;
-
-      const head = new THREE.Mesh(new THREE.SphereGeometry(0.18 * scale, 12, 12), M.skin);
-      head.position.y = h - 0.12;
-      head.castShadow = true;
-      g.add(head);
-
-      const hair = new THREE.Mesh(new THREE.SphereGeometry(0.2 * scale, 12, 12, 0, Math.PI * 2, 0, Math.PI * 0.55), hairMat);
-      hair.position.y = h - 0.08;
-      g.add(hair);
-
-      const bodyW = isFemale ? 0.32 * scale : 0.38 * scale;
-      const bodyH = isFemale ? 0.5 * scale : 0.55 * scale;
-      const body = new THREE.Mesh(new THREE.BoxGeometry(bodyW, bodyH, 0.22 * scale), shirtMat);
-      body.position.y = h - 0.45 * scale - 0.12;
-      body.castShadow = true;
-      g.add(body);
-
-      const armGeo = new THREE.BoxGeometry(0.1 * scale, 0.45 * scale, 0.1 * scale);
-      const arm1 = new THREE.Mesh(armGeo, shirtMat);
-      arm1.position.set(-(bodyW / 2 + 0.06), h - 0.45 * scale - 0.12, 0);
-      g.add(arm1);
-      const arm2 = new THREE.Mesh(armGeo, shirtMat);
-      arm2.position.set(bodyW / 2 + 0.06, h - 0.45 * scale - 0.12, 0);
-      g.add(arm2);
-
-      const legGeo = new THREE.BoxGeometry(0.13 * scale, 0.55 * scale, 0.13 * scale);
-      const leg1 = new THREE.Mesh(legGeo, pantsMat);
-      leg1.position.set(-0.1 * scale, 0.275 * scale, 0);
-      g.add(leg1);
-      const leg2 = new THREE.Mesh(legGeo, pantsMat);
-      leg2.position.set(0.1 * scale, 0.275 * scale, 0);
-      g.add(leg2);
-
-      const shoeGeo = new THREE.BoxGeometry(0.14 * scale, 0.08 * scale, 0.2 * scale);
-      const shoe1 = new THREE.Mesh(shoeGeo, M.shoes);
-      shoe1.position.set(-0.1 * scale, 0.04, 0.03);
-      g.add(shoe1);
-      const shoe2 = new THREE.Mesh(shoeGeo, M.shoes);
-      shoe2.position.set(0.1 * scale, 0.04, 0.03);
-      g.add(shoe2);
-
-      if (isFemale && !isChild) {
-        const dress = new THREE.Mesh(new THREE.CylinderGeometry(0.22 * scale, 0.28 * scale, 0.4 * scale, 8), M.dress);
-        dress.position.y = h - 0.75 * scale;
-        g.add(dress);
-      }
-
-      scene.add(g);
-      return { mesh: g, arm1, arm2, leg1, leg2, height: h, scale, isChild } as any;
-    }
-
-    const family: Record<string, any> = {
-      dad: createPerson({ height: 1.82, shirtMat: M.shirtBlue, pantsMat: M.pantsBlue, hairMat: M.hairBlack }),
-      mom: createPerson({ height: 1.68, shirtMat: M.shirtWhite, pantsMat: M.pantsKhaki, hairMat: M.hairBrown, isFemale: true }),
-      son: createPerson({ height: 1.35, shirtMat: M.shirtGreen, pantsMat: M.pantsGray, hairMat: M.hairBlonde, isChild: true }),
-      daughter: createPerson({ height: 1.25, shirtMat: M.shirtPink, pantsMat: M.pantsGray, hairMat: M.hairBrown, isChild: true, isFemale: true }),
-    };
-
-    family.dad.mesh.position.set(mx - 1, 0, mz + 5.5);
-    family.dad.mesh.rotation.y = Math.PI;
-    family.mom.mesh.position.set(mx + 1, 0, mz + 5.5);
-    family.mom.mesh.rotation.y = Math.PI;
-    family.son.mesh.position.set(mx - 2.5, 0, mz + 6.5);
-    family.son.mesh.rotation.y = Math.PI * 0.85;
-    family.daughter.mesh.position.set(mx + 2.5, 0, mz + 6.5);
-    family.daughter.mesh.rotation.y = Math.PI * 1.15;
-
-    // ==================== STREET LIGHTS ====================
-    const streetLights: any[] = [];
-    ROAD_CENTERS.forEach((xc) => {
-      ROAD_CENTERS.forEach((zc) => {
-        const offsets = [
-          [-4, -4],
-          [4, -4],
-          [-4, 4],
-          [4, 4],
-        ];
-        offsets.forEach(([ox, oz]) => {
-          const lx = xc + ox;
-          const lz = zc + oz;
-          const pole = cylinder(0.08, 0.1, 5, 8, M.metal, lx, 2.5, lz);
-          scene.add(pole);
-          const bulb = new THREE.Mesh(
-            new THREE.SphereGeometry(0.25, 8, 8),
-            new THREE.MeshStandardMaterial({ color: 0xffeebb, emissive: 0xffaa55, emissiveIntensity: 0 })
-          );
-          bulb.position.set(lx, 5.2, lz);
-          scene.add(bulb);
-          const light = new THREE.PointLight(0xffaa55, 0, 15);
-          light.position.set(lx, 5, lz);
-          scene.add(light);
-          streetLights.push({ bulb, light });
-        });
-      });
-    });
-
-    // ==================== CAR SYSTEM ====================
-    const cars: any[] = [];
-    const carColors = [M.carRed, M.carBlue, M.carBlack, M.carWhite, M.carSilver, M.carGold];
-
-    function createCar(bodyMat: THREE.Material) {
-      const g = new THREE.Group();
-      g.add(box(1.8, 0.85, 4.2, bodyMat, 0, 0.85, 0));
-      g.add(box(1.85, 0.4, 4.3, bodyMat, 0, 0.4, 0));
-      g.add(box(1.55, 0.65, 2.3, M.glass, 0, 1.55, -0.2));
-      g.add(box(1.6, 0.06, 2.35, bodyMat, 0, 1.88, -0.2));
-
-      const wheels: any[] = [];
-      const wheelPos = [
-        [-0.9, 0.32, 1.3],
-        [0.9, 0.32, 1.3],
-        [-0.9, 0.32, -1.3],
-        [0.9, 0.32, -1.3],
-      ];
-      wheelPos.forEach((p) => {
-        const wg = new THREE.Group();
-        const tire = new THREE.Mesh(new THREE.CylinderGeometry(0.32, 0.32, 0.24, 16), M.wheel);
-        tire.rotation.z = Math.PI / 2;
-        wg.add(tire);
-        const rim = new THREE.Mesh(new THREE.CylinderGeometry(0.19, 0.19, 0.25, 12), M.rim);
-        rim.rotation.z = Math.PI / 2;
-        wg.add(rim);
-        wg.position.set(p[0], p[1], p[2]);
-        g.add(wg);
-        wheels.push(wg);
-      });
-
-      const hlGeo = new THREE.BoxGeometry(0.38, 0.16, 0.06);
-      const hl1 = new THREE.Mesh(hlGeo, M.headlight);
-      hl1.position.set(-0.55, 0.72, 2.12);
-      g.add(hl1);
-      const hl2 = new THREE.Mesh(hlGeo, M.headlight);
-      hl2.position.set(0.55, 0.72, 2.12);
-      g.add(hl2);
-      const tl1 = new THREE.Mesh(hlGeo, M.taillight);
-      tl1.position.set(-0.55, 0.72, -2.12);
-      g.add(tl1);
-      const tl2 = new THREE.Mesh(hlGeo, M.taillight);
-      tl2.position.set(0.55, 0.72, -2.12);
-      g.add(tl2);
-      g.add(box(0.7, 0.2, 0.02, M.metal, 0, 0.42, -2.14));
-
-      scene.add(g);
-      return { mesh: g, wheels };
-    }
-
-    const lanes: any[] = [];
-    ROAD_CENTERS.forEach((zc, i) => {
-      lanes.push({ id: `h${i}r`, type: "h", center: zc, offset: LANE_OFFSET, dir: 1, z: zc + LANE_OFFSET });
-      lanes.push({ id: `h${i}l`, type: "h", center: zc, offset: -LANE_OFFSET, dir: -1, z: zc - LANE_OFFSET });
-    });
-    ROAD_CENTERS.forEach((xc, i) => {
-      lanes.push({ id: `v${i}r`, type: "v", center: xc, offset: LANE_OFFSET, dir: -1, x: xc + LANE_OFFSET });
-      lanes.push({ id: `v${i}l`, type: "v", center: xc, offset: -LANE_OFFSET, dir: 1, x: xc - LANE_OFFSET });
-    });
-
-    lanes.forEach((lane, li) => {
-      const color = carColors[li % carColors.length];
-      for (let i = 0; i < 2; i++) {
-        const carData = createCar(color);
-        const car = {
-          mesh: carData.mesh,
-          wheels: carData.wheels,
-          lane: lane,
-          pos: CITY_MIN + 20 + i * 70,
-          speed: 0.08 + (li % 3) * 0.02,
-          maxSpeed: 0.12 + (li % 3) * 0.02,
-          state: "driving",
-          turnData: null,
-          id: cars.length,
-        };
-
-        if (lane.type === "h") {
-          car.mesh.position.set(car.pos, 0, lane.z);
-          car.mesh.rotation.y = lane.dir > 0 ? -Math.PI / 2 : Math.PI / 2;
-        } else {
-          car.mesh.position.set(lane.x, 0, car.pos);
-          car.mesh.rotation.y = lane.dir > 0 ? 0 : Math.PI;
-        }
-
-        cars.push(car);
-      }
-    });
-
-    function getTurnCurve(ix: number, iz: number, fromLane: any, turn: string) {
-      const LO = LANE_OFFSET;
-      const D = 10;
-      const fromDir = fromLane.dir;
-      const fromType = fromLane.type;
-
-      let startX = 0,
-        startZ = 0,
-        startRot = 0,
-        endX = 0,
-        endZ = 0,
-        endRot = 0;
-
-      if (fromType === "h") {
-        const z = iz + fromLane.offset;
-        if (fromDir > 0) {
-          startX = ix - D;
-          startZ = z;
-          startRot = -Math.PI / 2;
-        } else {
-          startX = ix + D;
-          startZ = z;
-          startRot = Math.PI / 2;
-        }
-      } else {
-        const x = ix + fromLane.offset;
-        if (fromDir > 0) {
-          startX = x;
-          startZ = iz - D;
-          startRot = 0;
-        } else {
-          startX = x;
-          startZ = iz + D;
-          startRot = Math.PI;
-        }
-      }
-
-      if (turn === "straight") {
-        if (fromType === "h" && fromDir > 0) {
-          endX = ix + D;
-          endZ = startZ;
-          endRot = -Math.PI / 2;
-        } else if (fromType === "h" && fromDir < 0) {
-          endX = ix - D;
-          endZ = startZ;
-          endRot = Math.PI / 2;
-        } else if (fromType === "v" && fromDir > 0) {
-          endX = startX;
-          endZ = iz + D;
-          endRot = 0;
-        } else {
-          endX = startX;
-          endZ = iz - D;
-          endRot = Math.PI;
-        }
-      } else if (turn === "right") {
-        if (fromType === "h" && fromDir > 0) {
-          endX = ix - LO;
-          endZ = iz + D;
-          endRot = 0;
-        } else if (fromType === "h" && fromDir < 0) {
-          endX = ix + LO;
-          endZ = iz - D;
-          endRot = Math.PI;
-        } else if (fromType === "v" && fromDir > 0) {
-          endX = ix - D;
-          endZ = iz + LO;
-          endRot = Math.PI / 2;
-        } else {
-          endX = ix + D;
-          endZ = iz - LO;
-          endRot = -Math.PI / 2;
-        }
-      } else if (turn === "left") {
-        if (fromType === "h" && fromDir > 0) {
-          endX = ix + LO;
-          endZ = iz - D;
-          endRot = Math.PI;
-        } else if (fromType === "h" && fromDir < 0) {
-          endX = ix - LO;
-          endZ = iz + D;
-          endRot = 0;
-        } else if (fromType === "v" && fromDir > 0) {
-          endX = ix + D;
-          endZ = iz - LO;
-          endRot = -Math.PI / 2;
-        } else {
-          endX = ix - D;
-          endZ = iz + LO;
-          endRot = Math.PI / 2;
-        }
-      }
-
-      let cx = 0,
-        cz = 0;
-      if (turn === "straight") {
-        cx = (startX + endX) / 2;
-        cz = (startZ + endZ) / 2;
-      } else {
-        const dx = Math.sign(endX - ix);
-        const dz = Math.sign(endZ - iz);
-        cx = ix + dx * LO;
-        cz = iz + dz * LO;
-      }
-
-      return { startX, startZ, startRot, endX, endZ, endRot, cx, cz };
-    }
-
-    // ==================== PEDESTRIANS ====================
-    const pedestrians: any[] = [];
-    const pedShirts = [M.shirtRed, M.shirtBlue, M.shirtGreen, M.shirtYellow, M.shirtPurple, M.shirtWhite];
-    const pedPants = [M.pantsBlue, M.pantsBlack, M.pantsGray, M.pantsKhaki];
-
-    for (let i = 0; i < 24; i++) {
-      const ped = createPerson({
-        height: 1.6 + (i % 3) * 0.1,
-        shirtMat: pedShirts[i % pedShirts.length],
-        pantsMat: pedPants[i % pedPants.length],
-        hairMat: i % 2 === 0 ? M.hairBlack : M.hairBrown,
-      });
-      const roadIdx = i % ROAD_CENTERS.length;
-      const rc = ROAD_CENTERS[roadIdx];
-      const side = i % 2 === 0 ? 1 : -1;
-      if (i % 4 < 2) {
-        ped.mesh.position.set(-60 + ((i * 8) % 120), 0, rc + side * (ROAD_WIDTH / 2 + 1));
-      } else {
-        ped.mesh.position.set(rc + side * (ROAD_WIDTH / 2 + 1), 0, -60 + ((i * 7) % 120));
-      }
-      ped.targetX = ped.mesh.position.x;
-      ped.targetZ = ped.mesh.position.z;
-      ped.speed = 0.012 + (i % 4) * 0.003;
-      ped.waitTime = i * 200;
-      pedestrians.push(ped);
-    }
-
-    // ==================== SCHOOL KIDS ====================
-    const schoolKids: any[] = [];
-    const kidColors = [M.shirtRed, M.shirtBlue, M.shirtYellow, M.shirtGreen, M.shirtPurple];
-    for (let i = 0; i < 10; i++) {
-      const kid = createPerson({
-        height: 1.15 + (i % 3) * 0.12,
-        shirtMat: kidColors[i % kidColors.length],
-        pantsMat: M.pantsGray,
-        hairMat: i % 2 === 0 ? M.hairBrown : M.hairBlonde,
-        isChild: true,
-      });
-      kid.mesh.position.set(schoolBounds.cx + (i % 5 - 2) * 4, 0, fieldZ + (Math.floor(i / 5) - 0.5) * 6);
-      kid.mesh.rotation.y = Math.random() * Math.PI * 2;
-      kid.team = i < 5 ? "A" : "B";
-      kid.targetX = kid.mesh.position.x;
-      kid.targetZ = kid.mesh.position.z;
-      kid.speed = 0.025 + (i % 3) * 0.008;
-      kid.waitTime = i * 300;
-      schoolKids.push(kid);
-    }
-
-    const ball = new THREE.Group();
-    ball.add(new THREE.Mesh(new THREE.SphereGeometry(0.25, 16, 16), M.ball));
-    const stripe1 = new THREE.Mesh(new THREE.TorusGeometry(0.25, 0.03, 8, 16), M.ballStripe);
-    stripe1.rotation.x = Math.PI / 2;
-    ball.add(stripe1);
-    const stripe2 = new THREE.Mesh(new THREE.TorusGeometry(0.25, 0.03, 8, 16), M.ballStripe);
-    stripe2.rotation.x = 0;
-    ball.add(stripe2);
+    stripe2.rotation.x = 0; ball.add(stripe2);
     ball.position.set(schoolBounds.cx, 0.25, fieldZ);
     scene.add(ball);
     const ballState = { x: schoolBounds.cx, z: fieldZ, vx: 0, vz: 0 };
@@ -843,7 +442,8 @@ export default function VeridiaCity() {
     let timeOfDay = 9.0;
 
     function updateTime(dt: number) {
-      timeOfDay += (dt / 1000) * (24 / DAY_SECONDS);
+      const s = settingsRef.current;
+      timeOfDay += (dt / 1000) * (24 / DAY_SECONDS) * s.timeSpeed;
       if (timeOfDay >= 24) timeOfDay -= 24;
 
       const hours = Math.floor(timeOfDay);
@@ -857,52 +457,57 @@ export default function VeridiaCity() {
       if (dateRef.current) dateRef.current.textContent = dateStr;
 
       let skyColor: THREE.Color | number, sunInt: number, ambInt: number;
-      if (timeOfDay < 5 || timeOfDay > 20) {
-        skyColor = 0x0a0a1a;
-        sunInt = 0;
-        ambInt = 0.12;
+      if (!s.dayNightCycle) {
+        skyColor = 0x87ceeb; sunInt = 1.3; ambInt = 0.5;
+      } else if (timeOfDay < 5 || timeOfDay > 20) {
+        skyColor = 0x0a0a1a; sunInt = 0; ambInt = 0.12;
       } else if (timeOfDay < 7) {
         const t = (timeOfDay - 5) / 2;
         skyColor = new THREE.Color(0x0a0a1a).lerp(new THREE.Color(0xffaa77), t);
-        sunInt = t * 1.3;
-        ambInt = 0.12 + t * 0.35;
+        sunInt = t * 1.3; ambInt = 0.12 + t * 0.35;
       } else if (timeOfDay < 17) {
-        skyColor = 0x87ceeb;
-        sunInt = 1.3;
-        ambInt = 0.5;
+        skyColor = 0x87ceeb; sunInt = 1.3; ambInt = 0.5;
       } else if (timeOfDay < 20) {
         const t = (timeOfDay - 17) / 3;
         skyColor = new THREE.Color(0x87ceeb).lerp(new THREE.Color(0x0a0a1a), t);
-        sunInt = 1.3 * (1 - t);
-        ambInt = 0.5 * (1 - t) + 0.12 * t;
+        sunInt = 1.3 * (1 - t); ambInt = 0.5 * (1 - t) + 0.12 * t;
       } else {
-        skyColor = 0x0a0a1a;
-        sunInt = 0;
-        ambInt = 0.12;
+        skyColor = 0x0a0a1a; sunInt = 0; ambInt = 0.12;
       }
-      scene.background = new THREE.Color(skyColor);
-      scene.fog = new THREE.Fog(skyColor instanceof THREE.Color ? skyColor.getHex() : skyColor, 120, 350);
+
+      const hex = skyColor instanceof THREE.Color ? skyColor.getHex() : skyColor;
+      scene.background = new THREE.Color(hex);
+      if (s.fog) {
+        scene.fog = new THREE.Fog(hex, 120, 350);
+      } else {
+        scene.fog = null;
+      }
       sunLight.intensity = sunInt;
       ambientLight.intensity = ambInt;
+      sunLight.castShadow = s.shadows;
 
       const angle = ((timeOfDay - 6) / 12) * Math.PI;
       sunLight.position.set(Math.cos(angle) * 100, Math.sin(angle) * 70, 40);
 
       const isNight = timeOfDay < 6 || timeOfDay > 19;
       streetLights.forEach((sl) => {
-        sl.light.intensity = isNight ? 1.5 : 0;
-        sl.bulb.material.emissiveIntensity = isNight ? 1 : 0;
+        sl.light.intensity = (isNight && s.showStreetLights) ? 1.5 : 0;
+        sl.bulb.material.emissiveIntensity = (isNight && s.showStreetLights) ? 1 : 0;
       });
     }
 
     // ==================== CAR UPDATE ====================
     function updateCars(dt: number) {
+      const s = settingsRef.current;
+      if (!s.showCars) {
+        cars.forEach((car) => { car.mesh.visible = false; });
+        return;
+      }
       const dtSec = dt / 1000;
-
       cars.forEach((car) => {
+        car.mesh.visible = true;
         if (car.state === "driving") {
-          let nearestIx: any = null,
-            nearestDist = Infinity;
+          let nearestIx: any = null, nearestDist = Infinity;
           for (const ix of intersections) {
             let dist: number;
             if (car.lane.type === "h") {
@@ -910,26 +515,19 @@ export default function VeridiaCity() {
             } else {
               dist = car.lane.dir > 0 ? ix.z - car.pos : car.pos - ix.z;
             }
-            if (dist > 2 && dist < nearestDist) {
-              nearestDist = dist;
-              nearestIx = ix;
-            }
+            if (dist > 2 && dist < nearestDist) { nearestDist = dist; nearestIx = ix; }
           }
 
-          let targetSpeed = car.maxSpeed;
-
+          let targetSpeed = car.maxSpeed * s.carSpeed;
           for (const other of cars) {
-            if (other === car) continue;
-            if (other.lane.id !== car.lane.id) continue;
+            if (other === car || other.lane.id !== car.lane.id) continue;
             let dist: number;
             if (car.lane.type === "h") {
               dist = car.lane.dir > 0 ? other.mesh.position.x - car.mesh.position.x : car.mesh.position.x - other.mesh.position.x;
             } else {
               dist = car.lane.dir > 0 ? other.mesh.position.z - car.mesh.position.z : car.mesh.position.z - other.mesh.position.z;
             }
-            if (dist > 0 && dist < 12) {
-              targetSpeed = Math.min(targetSpeed, other.speed * 0.8);
-            }
+            if (dist > 0 && dist < 12) targetSpeed = Math.min(targetSpeed, other.speed * 0.8);
           }
 
           if (nearestIx && nearestDist < 14) {
@@ -937,19 +535,17 @@ export default function VeridiaCity() {
             let turn = "straight";
             if (rand < 0.25) turn = "right";
             else if (rand < 0.4) turn = "left";
-
             if (turn !== "straight" && nearestIx) {
               const curve = getTurnCurve(nearestIx.x, nearestIx.z, car.lane, turn);
               car.state = "turning";
               car.turnData = { ...curve, elapsed: 0, duration: 2.5 };
               return;
-            } else {
-              if (nearestDist < 8) targetSpeed = Math.min(targetSpeed, 0.04);
+            } else if (nearestDist < 8) {
+              targetSpeed = Math.min(targetSpeed, 0.04);
             }
           }
 
           car.speed += (targetSpeed - car.speed) * 0.08;
-
           const move = car.speed * dtSec * 30;
           if (car.lane.type === "h") {
             car.pos += car.lane.dir * move;
@@ -962,7 +558,6 @@ export default function VeridiaCity() {
             car.mesh.position.x = car.lane.x;
             car.mesh.rotation.y = car.lane.dir > 0 ? 0 : Math.PI;
           }
-
           if (car.pos > CITY_MAX + 5) car.pos = CITY_MIN - 5;
           if (car.pos < CITY_MIN - 5) car.pos = CITY_MAX + 5;
         } else if (car.state === "turning") {
@@ -970,50 +565,30 @@ export default function VeridiaCity() {
           td.elapsed += dtSec;
           let t = td.elapsed / td.duration;
           if (t > 1) t = 1;
-
           const omt = 1 - t;
           const x = omt * omt * td.startX + 2 * omt * t * td.cx + t * t * td.endX;
           const z = omt * omt * td.startZ + 2 * omt * t * td.cz + t * t * td.endZ;
-
           car.mesh.position.set(x, 0, z);
-
           let rotDiff = td.endRot - td.startRot;
           while (rotDiff > Math.PI) rotDiff -= Math.PI * 2;
           while (rotDiff < -Math.PI) rotDiff += Math.PI * 2;
           car.mesh.rotation.y = td.startRot + rotDiff * t;
-
           if (t >= 1) {
             car.state = "driving";
             car.turnData = null;
-            let bestLane = car.lane;
-            let bestDist = Infinity;
+            let bestLane = car.lane, bestDist = Infinity;
             lanes.forEach((l) => {
-              let dist: number;
-              if (l.type === "h") {
-                dist = Math.abs(car.mesh.position.z - l.z);
-              } else {
-                dist = Math.abs(car.mesh.position.x - l.x);
-              }
-              if (dist < bestDist) {
-                bestDist = dist;
-                bestLane = l;
-              }
+              let dist = l.type === "h" ? Math.abs(car.mesh.position.z - l.z) : Math.abs(car.mesh.position.x - l.x);
+              if (dist < bestDist) { bestDist = dist; bestLane = l; }
             });
             car.lane = bestLane;
-            if (car.lane.type === "h") {
-              car.pos = car.mesh.position.x;
-            } else {
-              car.pos = car.mesh.position.z;
-            }
+            car.pos = car.lane.type === "h" ? car.mesh.position.x : car.mesh.position.z;
           }
         }
-
         const wheelSpeed = car.speed * 15;
         car.wheels.forEach((w: any) => {
           w.children.forEach((c: any) => {
-            if (c.geometry && c.geometry.type === "CylinderGeometry") {
-              c.rotation.x += wheelSpeed * dtSec;
-            }
+            if (c.geometry && c.geometry.type === "CylinderGeometry") c.rotation.x += wheelSpeed * dtSec;
           });
         });
       });
@@ -1021,7 +596,10 @@ export default function VeridiaCity() {
 
     // ==================== PEDESTRIANS ====================
     function updatePedestrians(dt: number) {
+      const s = settingsRef.current;
       pedestrians.forEach((p) => {
+        p.mesh.visible = s.showPedestrians;
+        if (!s.showPedestrians) return;
         if (p.waitTime > 0) {
           p.waitTime -= dt;
           p.arm1.rotation.x = Math.sin(Date.now() * 0.002) * 0.1;
@@ -1038,7 +616,7 @@ export default function VeridiaCity() {
           p.targetZ = Math.max(CITY_MIN + 5, Math.min(CITY_MAX - 5, p.targetZ));
           p.waitTime = Math.random() * 2500;
         } else {
-          const move = p.speed * (dt / 16);
+          const move = p.speed * s.pedestrianSpeed * (dt / 16);
           p.mesh.position.x += (dx / dist) * move;
           p.mesh.position.z += (dz / dist) * move;
           p.mesh.rotation.y = Math.atan2(dx, dz);
@@ -1053,8 +631,11 @@ export default function VeridiaCity() {
 
     // ==================== SCHOOL KIDS ====================
     function updateSchoolKids(dt: number) {
+      const s = settingsRef.current;
       const time = Date.now() * 0.001;
       schoolKids.forEach((kid, i) => {
+        kid.mesh.visible = s.showPedestrians;
+        if (!s.showPedestrians) return;
         if (kid.waitTime > 0) {
           kid.waitTime -= dt;
           kid.arm1.rotation.x = Math.sin(time * 3 + i) * 0.3;
@@ -1065,7 +646,7 @@ export default function VeridiaCity() {
         const bdz = ballState.z - kid.mesh.position.z;
         const bdist = Math.sqrt(bdx * bdx + bdz * bdz);
         if (bdist > 1.5 && Math.random() < 0.3) {
-          const runSpeed = kid.speed * 1.5;
+          const runSpeed = kid.speed * 1.5 * s.pedestrianSpeed;
           const move = runSpeed * (dt / 16);
           kid.mesh.position.x += (bdx / bdist) * move;
           kid.mesh.position.z += (bdz / bdist) * move;
@@ -1089,7 +670,7 @@ export default function VeridiaCity() {
             kid.targetZ = fieldZ + (Math.random() - 0.5) * 12;
             kid.waitTime = Math.random() * 1200;
           } else {
-            const move = kid.speed * (dt / 16);
+            const move = kid.speed * s.pedestrianSpeed * (dt / 16);
             kid.mesh.position.x += (dx / dist) * move;
             kid.mesh.position.z += (dz / dist) * move;
             kid.mesh.rotation.y = Math.atan2(dx, dz);
@@ -1116,6 +697,9 @@ export default function VeridiaCity() {
 
     // ==================== FAMILY ====================
     function updateFamily(dt: number) {
+      const s = settingsRef.current;
+      Object.values(family).forEach((member: any) => { member.mesh.visible = s.showFamily; });
+      if (!s.showFamily) return;
       const time = Date.now() * 0.001;
       family.dad.arm2.rotation.x = Math.sin(time * 2) * 0.4 - 0.5;
       family.dad.arm1.rotation.x = Math.sin(time * 2 + Math.PI) * 0.1;
@@ -1133,10 +717,22 @@ export default function VeridiaCity() {
     // ==================== MAIN LOOP ====================
     let lastTime = 0;
     let animId: number;
+    let frameCount = 0;
+    let lastFpsTime = 0;
+
     function animate(time: number) {
       animId = requestAnimationFrame(animate);
       const dt = Math.min(time - lastTime, 50);
       lastTime = time;
+
+      frameCount++;
+      if (time - lastFpsTime >= 1000) {
+        setFps(frameCount);
+        frameCount = 0;
+        lastFpsTime = time;
+      }
+
+      controls.autoRotate = settingsRef.current.autoRotate;
 
       updateTime(dt);
       updateCars(dt);
@@ -1148,21 +744,16 @@ export default function VeridiaCity() {
     }
     animId = requestAnimationFrame(animate);
 
-    // ==================== RESIZE ====================
     const onResize = () => {
       if (!container) return;
-      const w = container.clientWidth;
-      const h = container.clientHeight;
+      const w = container.clientWidth, h = container.clientHeight;
       camera.aspect = w / h;
       camera.updateProjectionMatrix();
       renderer.setSize(w, h);
     };
     window.addEventListener("resize", onResize);
-
-    // Hide loading
     setTimeout(() => setLoading(false), 800);
 
-    // ==================== CLEANUP ====================
     return () => {
       cancelAnimationFrame(animId);
       window.removeEventListener("resize", onResize);
@@ -1176,12 +767,133 @@ export default function VeridiaCity() {
 
   return (
     <div className="veridia-wrapper">
+      {/* ─── Love Message Overlay ─── */}
+      <div className="love-message">
+        <span className="love-heart">💖</span>
+        <span className="love-text">{loveMessage}</span>
+        <span className="love-heart">💖</span>
+      </div>
+
+      {/* ─── Settings Toggle Button ─── */}
+      <button 
+        className="settings-toggle"
+        onClick={() => setShowSettings(!showSettings)}
+        title="City Settings"
+      >
+        ⚙️
+      </button>
+
+      {/* ─── Settings Panel ─── */}
+      {showSettings && (
+        <div className="settings-panel">
+          <div className="settings-header">
+            <h3>🌆 Veridia Settings</h3>
+            <button onClick={() => setShowSettings(false)}>✕</button>
+          </div>
+
+          <div className="settings-section">
+            <h4>⏱️ Time Control</h4>
+            <div className="setting-row">
+              <label>Time Speed</label>
+              <div className="speed-buttons">
+                {[0.5, 1, 2, 5].map((speed) => (
+                  <button
+                    key={speed}
+                    className={timeSpeed === speed ? "active" : ""}
+                    onClick={() => setTimeSpeed(speed)}
+                  >
+                    {speed}x
+                  </button>
+                ))}
+              </div>
+            </div>
+            <div className="setting-row">
+              <label>Pause Time</label>
+              <button 
+                className={`toggle-btn ${paused ? "active" : ""}`}
+                onClick={() => setPaused(!paused)}
+              >
+                {paused ? "▶ Resume" : "⏸ Pause"}
+              </button>
+            </div>
+          </div>
+
+          <div className="settings-section">
+            <h4>👁️ Visibility</h4>
+            {[
+              { label: "Our Family 💕", state: showFamily, set: setShowFamily },
+              { label: "Cars 🚗", state: showCars, set: setShowCars },
+              { label: "Pedestrians 🚶", state: showPedestrians, set: setShowPedestrians },
+              { label: "School Kids ⚽", state: showSchoolKids, set: setShowSchoolKids },
+            ].map((item) => (
+              <div className="setting-row" key={item.label}>
+                <label>{item.label}</label>
+                <button
+                  className={`toggle-btn ${item.state ? "active" : ""}`}
+                  onClick={() => item.set(!item.state)}
+                >
+                  {item.state ? "✓ On" : "✕ Off"}
+                </button>
+              </div>
+            ))}
+          </div>
+
+          <div className="settings-section">
+            <h4>🎨 Quality</h4>
+            <div className="setting-row">
+              <label>Shadow Quality</label>
+              <select 
+                value={shadowQuality} 
+                onChange={(e) => setShadowQuality(e.target.value as any)}
+              >
+                <option value="low">Low (Fastest)</option>
+                <option value="medium">Medium</option>
+                <option value="high">High (Prettiest)</option>
+              </select>
+            </div>
+            <div className="setting-row">
+              <label>Fog Density</label>
+              <input
+                type="range"
+                min="0.5"
+                max="2"
+                step="0.1"
+                value={fogDensity}
+                onChange={(e) => setFogDensity(parseFloat(e.target.value))}
+              />
+              <span>{fogDensity.toFixed(1)}x</span>
+            </div>
+            <div className="setting-row">
+              <label>Camera Height</label>
+              <input
+                type="range"
+                min="20"
+                max="100"
+                step="5"
+                value={cameraHeight}
+                onChange={(e) => setCameraHeight(parseInt(e.target.value))}
+              />
+              <span>{cameraHeight}m</span>
+            </div>
+          </div>
+
+          <div className="settings-section">
+            <h4>💌 Love Note</h4>
+            <input
+              type="text"
+              value={loveMessage}
+              onChange={(e) => setLoveMessage(e.target.value)}
+              placeholder="Write a message for her..."
+              className="love-input"
+            />
+          </div>
+        </div>
+      )}
+
       {loading && (
         <div className="city-loading">
           <h2>Building Veridia...</h2>
-          <div className="loading-bar">
-            <div className="loading-progress" />
-          </div>
+          <div className="loading-bar"><div className="loading-progress" /></div>
         </div>
       )}
 
@@ -1191,8 +903,73 @@ export default function VeridiaCity() {
       </div>
 
       <div className="ui-hint">
-        Left drag = rotate &nbsp;&bull;&nbsp; Right drag = pan &nbsp;&bull;&nbsp; Scroll = zoom
+        Left drag = rotate • Right drag = pan • Scroll = zoom
       </div>
+
+      <div className="fps-counter">{fps} FPS</div>
+
+      <button className="settings-toggle" onClick={() => setShowSettings(!showSettings)} title="Settings">
+        ⚙️
+      </button>
+
+      {showSettings && (
+        <div className="settings-panel">
+          <h3>🌆 Veridia Settings</h3>
+
+          <div className="setting-group">
+            <label>⏱️ Time Speed</label>
+            <input type="range" min="0" max="5" step="0.1" value={settings.timeSpeed}
+              onChange={(e) => updateSetting("timeSpeed", parseFloat(e.target.value))} />
+            <span>{settings.timeSpeed}x</span>
+          </div>
+
+          <div className="setting-group">
+            <label>🚗 Car Speed</label>
+            <input type="range" min="0" max="3" step="0.1" value={settings.carSpeed}
+              onChange={(e) => updateSetting("carSpeed", parseFloat(e.target.value))} />
+            <span>{settings.carSpeed}x</span>
+          </div>
+
+          <div className="setting-group">
+            <label>🚶 Pedestrian Speed</label>
+            <input type="range" min="0" max="3" step="0.1" value={settings.pedestrianSpeed}
+              onChange={(e) => updateSetting("pedestrianSpeed", parseFloat(e.target.value))} />
+            <span>{settings.pedestrianSpeed}x</span>
+          </div>
+
+          <div className="setting-row">
+            <label><input type="checkbox" checked={settings.showCars}
+              onChange={(e) => updateSetting("showCars", e.target.checked)} /> 🚗 Cars</label>
+            <label><input type="checkbox" checked={settings.showPedestrians}
+              onChange={(e) => updateSetting("showPedestrians", e.target.checked)} /> 🚶 People</label>
+          </div>
+
+          <div className="setting-row">
+            <label><input type="checkbox" checked={settings.showFamily}
+              onChange={(e) => updateSetting("showFamily", e.target.checked)} /> 👨‍👩‍👧‍👦 Family</label>
+            <label><input type="checkbox" checked={settings.showStreetLights}
+              onChange={(e) => updateSetting("showStreetLights", e.target.checked)} /> 💡 Street Lights</label>
+          </div>
+
+          <div className="setting-row">
+            <label><input type="checkbox" checked={settings.dayNightCycle}
+              onChange={(e) => updateSetting("dayNightCycle", e.target.checked)} /> 🌅 Day/Night</label>
+            <label><input type="checkbox" checked={settings.shadows}
+              onChange={(e) => updateSetting("shadows", e.target.checked)} /> 🌑 Shadows</label>
+          </div>
+
+          <div className="setting-row">
+            <label><input type="checkbox" checked={settings.fog}
+              onChange={(e) => updateSetting("fog", e.target.checked)} /> 🌫️ Fog</label>
+            <label><input type="checkbox" checked={settings.autoRotate}
+              onChange={(e) => updateSetting("autoRotate", e.target.checked)} /> 🔄 Auto Rotate</label>
+          </div>
+
+          <p className="setting-hint">
+            Made with 💕 for Dal — Your forever home in Veridia
+          </p>
+        </div>
+      )}
 
       <div ref={mountRef} className="city-canvas" />
 
@@ -1203,6 +980,241 @@ export default function VeridiaCity() {
           height: 100%;
           overflow: hidden;
           background: #0a0a0f;
+        }
+
+        /* ─── Love Message ─── */
+        .love-message {
+          position: absolute;
+          top: 20px;
+          left: 20px;
+          z-index: 20;
+          display: flex;
+          align-items: center;
+          gap: 12px;
+          padding: 12px 24px;
+          background: linear-gradient(135deg, rgba(255,100,150,0.15), rgba(200,100,255,0.1));
+          border-radius: 50px;
+          border: 1px solid rgba(255,150,200,0.2);
+          backdrop-filter: blur(12px);
+          animation: lovePulse 3s ease-in-out infinite;
+          pointer-events: none;
+        }
+        .love-heart {
+          font-size: 1.4rem;
+          animation: heartBeat 1.5s ease-in-out infinite;
+        }
+        .love-text {
+          font-size: 1rem;
+          font-weight: 600;
+          color: #ffd1dc;
+          text-shadow: 0 2px 10px rgba(255,100,150,0.3);
+          letter-spacing: 0.02em;
+        }
+        @keyframes lovePulse {
+          0%, 100% { box-shadow: 0 0 20px rgba(255,100,150,0.1); }
+          50% { box-shadow: 0 0 40px rgba(255,100,150,0.25); }
+        }
+        @keyframes heartBeat {
+          0%, 100% { transform: scale(1); }
+          50% { transform: scale(1.2); }
+        }
+
+        /* ─── Settings Toggle ─── */
+        .settings-toggle {
+          position: absolute;
+          top: 20px;
+          left: 50%;
+          transform: translateX(-50%);
+          z-index: 20;
+          width: 44px;
+          height: 44px;
+          border-radius: 50%;
+          background: linear-gradient(135deg, rgba(255,255,255,0.1), rgba(255,255,255,0.05));
+          border: 1px solid rgba(255,255,255,0.15);
+          color: #fff;
+          font-size: 1.3rem;
+          cursor: pointer;
+          backdrop-filter: blur(10px);
+          transition: all 0.3s;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+        }
+        .settings-toggle:hover {
+          transform: translateX(-50%) scale(1.1);
+          background: linear-gradient(135deg, rgba(255,255,255,0.2), rgba(255,255,255,0.1));
+          box-shadow: 0 0 20px rgba(255,255,255,0.1);
+        }
+
+        /* ─── Settings Panel ─── */
+        .settings-panel {
+          position: absolute;
+          top: 70px;
+          left: 50%;
+          transform: translateX(-50%);
+          z-index: 25;
+          width: 320px;
+          max-height: 70vh;
+          overflow-y: auto;
+          background: linear-gradient(145deg, rgba(20,20,35,0.95), rgba(10,10,20,0.98));
+          border-radius: 20px;
+          padding: 20px;
+          border: 1px solid rgba(255,255,255,0.08);
+          backdrop-filter: blur(24px);
+          box-shadow: 0 20px 60px rgba(0,0,0,0.5);
+          animation: slideDown 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+        }
+        @keyframes slideDown {
+          from { opacity: 0; transform: translateX(-50%) translateY(-20px); }
+          to { opacity: 1; transform: translateX(-50%) translateY(0); }
+        }
+        .settings-header {
+          display: flex;
+          justify-content: space-between;
+          align-items: center;
+          margin-bottom: 16px;
+          padding-bottom: 12px;
+          border-bottom: 1px solid rgba(255,255,255,0.08);
+        }
+        .settings-header h3 {
+          margin: 0;
+          font-size: 1.1rem;
+          color: #feca57;
+          font-weight: 700;
+        }
+        .settings-header button {
+          background: none;
+          border: none;
+          color: #8a8aa8;
+          font-size: 1.2rem;
+          cursor: pointer;
+          transition: color 0.2s;
+        }
+        .settings-header button:hover {
+          color: #fff;
+        }
+
+        .settings-section {
+          margin-bottom: 16px;
+        }
+        .settings-section h4 {
+          margin: 0 0 10px 0;
+          font-size: 0.85rem;
+          color: #a0a0b8;
+          text-transform: uppercase;
+          letter-spacing: 0.08em;
+        }
+
+        .setting-row {
+          display: flex;
+          justify-content: space-between;
+          align-items: center;
+          padding: 8px 0;
+          border-bottom: 1px solid rgba(255,255,255,0.04);
+        }
+        .setting-row label {
+          font-size: 0.9rem;
+          color: #d0d0e0;
+        }
+
+        .speed-buttons {
+          display: flex;
+          gap: 6px;
+        }
+        .speed-buttons button {
+          background: rgba(255,255,255,0.06);
+          border: 1px solid rgba(255,255,255,0.1);
+          color: #a0a0b8;
+          padding: 4px 10px;
+          border-radius: 8px;
+          font-size: 0.8rem;
+          cursor: pointer;
+          transition: all 0.2s;
+        }
+        .speed-buttons button:hover {
+          background: rgba(255,255,255,0.12);
+          color: #fff;
+        }
+        .speed-buttons button.active {
+          background: linear-gradient(135deg, #ff6b6b, #feca57);
+          color: #1a1a2e;
+          border-color: transparent;
+          font-weight: 700;
+        }
+
+        .toggle-btn {
+          background: rgba(255,255,255,0.06);
+          border: 1px solid rgba(255,255,255,0.1);
+          color: #8a8aa8;
+          padding: 6px 14px;
+          border-radius: 10px;
+          font-size: 0.8rem;
+          cursor: pointer;
+          transition: all 0.2s;
+        }
+        .toggle-btn:hover {
+          background: rgba(255,255,255,0.12);
+        }
+        .toggle-btn.active {
+          background: linear-gradient(135deg, rgba(100,200,100,0.3), rgba(100,200,100,0.15));
+          color: #90ee90;
+          border-color: rgba(100,200,100,0.3);
+        }
+
+        .setting-row select {
+          background: rgba(255,255,255,0.06);
+          border: 1px solid rgba(255,255,255,0.1);
+          color: #d0d0e0;
+          padding: 6px 10px;
+          border-radius: 8px;
+          font-size: 0.85rem;
+          cursor: pointer;
+        }
+        .setting-row select option {
+          background: #1a1a2e;
+          color: #d0d0e0;
+        }
+
+        .setting-row input[type="range"] {
+          width: 100px;
+          -webkit-appearance: none;
+          height: 5px;
+          border-radius: 3px;
+          background: rgba(255,255,255,0.08);
+          outline: none;
+        }
+        .setting-row input[type="range"]::-webkit-slider-thumb {
+          -webkit-appearance: none;
+          width: 14px;
+          height: 14px;
+          border-radius: 50%;
+          background: #feca57;
+          cursor: pointer;
+        }
+        .setting-row span {
+          font-size: 0.8rem;
+          color: #6e6e8a;
+          min-width: 30px;
+          text-align: right;
+        }
+
+        .love-input {
+          width: 100%;
+          background: rgba(255,255,255,0.05);
+          border: 1px solid rgba(255,150,200,0.2);
+          border-radius: 12px;
+          padding: 10px 14px;
+          color: #ffd1dc;
+          font-size: 0.9rem;
+          outline: none;
+          transition: all 0.2s;
+        }
+        .love-input:focus {
+          border-color: rgba(255,150,200,0.4);
+          box-shadow: 0 0 15px rgba(255,150,200,0.1);
+        }
+        .love-input::placeholder {
+          color: rgba(255,150,200,0.4);
         }
         .city-canvas {
           width: 100%;
@@ -1220,10 +1232,6 @@ export default function VeridiaCity() {
           color: white;
           transition: opacity 1s;
         }
-        .city-loading.hidden {
-          opacity: 0;
-          pointer-events: none;
-        }
         .city-loading h2 {
           font-size: 24px;
           margin-bottom: 16px;
@@ -1238,13 +1246,13 @@ export default function VeridiaCity() {
         }
         .loading-progress {
           height: 100%;
-          background: #6366f1;
+          background: linear-gradient(90deg, #6366f1, #a855f7);
           width: 100%;
-          animation: loadPulse 1s ease-in-out infinite;
+          animation: loadPulse 1.5s ease-in-out infinite;
         }
         @keyframes loadPulse {
           0%, 100% { opacity: 1; }
-          50% { opacity: 0.5; }
+          50% { opacity: 0.4; }
         }
         .ui-time {
           position: absolute;
@@ -1279,6 +1287,138 @@ export default function VeridiaCity() {
           pointer-events: none;
           text-align: center;
           font-family: "Segoe UI", sans-serif;
+        }
+        .fps-counter {
+          position: absolute;
+          top: 20px;
+          left: 20px;
+          z-index: 10;
+          color: rgba(255, 255, 255, 0.4);
+          font-size: 11px;
+          font-family: monospace;
+          pointer-events: none;
+        }
+        .settings-toggle {
+          position: absolute;
+          top: 20px;
+          right: 50%;
+          transform: translateX(50%);
+          z-index: 20;
+          width: 44px;
+          height: 44px;
+          border-radius: 50%;
+          background: rgba(255, 255, 255, 0.1);
+          backdrop-filter: blur(10px);
+          border: 1px solid rgba(255, 255, 255, 0.15);
+          color: white;
+          font-size: 1.3rem;
+          cursor: pointer;
+          transition: all 0.3s;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+        }
+        .settings-toggle:hover {
+          background: rgba(255, 255, 255, 0.2);
+          transform: translateX(50%) scale(1.1);
+        }
+        .settings-panel {
+          position: absolute;
+          top: 70px;
+          right: 50%;
+          transform: translateX(50%);
+          z-index: 20;
+          width: 320px;
+          max-height: 70vh;
+          overflow-y: auto;
+          background: rgba(10, 10, 25, 0.92);
+          backdrop-filter: blur(20px);
+          border: 1px solid rgba(255, 255, 255, 0.1);
+          border-radius: 20px;
+          padding: 24px;
+          color: #fff;
+          font-family: "Segoe UI", sans-serif;
+          box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
+          animation: slideDown 0.3s ease;
+        }
+        @keyframes slideDown {
+          from { opacity: 0; transform: translateX(50%) translateY(-10px); }
+          to { opacity: 1; transform: translateX(50%) translateY(0); }
+        }
+        .settings-panel h3 {
+          margin: 0 0 20px 0;
+          font-size: 1.1rem;
+          text-align: center;
+          background: linear-gradient(90deg, #ff6b6b, #feca57);
+          -webkit-background-clip: text;
+          -webkit-text-fill-color: transparent;
+        }
+        .setting-group {
+          margin-bottom: 16px;
+        }
+        .setting-group label {
+          display: block;
+          font-size: 0.85rem;
+          color: #a0a0b8;
+          margin-bottom: 6px;
+        }
+        .setting-group input[type="range"] {
+          width: 100%;
+          -webkit-appearance: none;
+          height: 5px;
+          border-radius: 3px;
+          background: rgba(255, 255, 255, 0.1);
+          outline: none;
+        }
+        .setting-group input[type="range"]::-webkit-slider-thumb {
+          -webkit-appearance: none;
+          width: 14px;
+          height: 14px;
+          border-radius: 50%;
+          background: linear-gradient(135deg, #ff6b6b, #feca57);
+          cursor: pointer;
+        }
+        .setting-group span {
+          display: inline-block;
+          margin-top: 4px;
+          font-size: 0.8rem;
+          color: #feca57;
+          font-variant-numeric: tabular-nums;
+        }
+        .setting-row {
+          display: grid;
+          grid-template-columns: 1fr 1fr;
+          gap: 10px;
+          margin-bottom: 12px;
+        }
+        .setting-row label {
+          display: flex;
+          align-items: center;
+          gap: 8px;
+          font-size: 0.85rem;
+          color: #c0c0d8;
+          cursor: pointer;
+          padding: 8px;
+          border-radius: 8px;
+          background: rgba(255, 255, 255, 0.03);
+          transition: background 0.2s;
+        }
+        .setting-row label:hover {
+          background: rgba(255, 255, 255, 0.08);
+        }
+        .setting-row input[type="checkbox"] {
+          width: 16px;
+          height: 16px;
+          accent-color: #ff6b6b;
+        }
+        .setting-hint {
+          text-align: center;
+          font-size: 0.78rem;
+          color: #6e6e8a;
+          margin-top: 16px;
+          padding-top: 12px;
+          border-top: 1px solid rgba(255, 255, 255, 0.06);
+          font-style: italic;
         }
       `}</style>
     </div>

@@ -73,7 +73,7 @@ const VeridiaCity = dynamic(() => import("@/components/VeridiaCity"), {
   ),
 });
 
-type View = "dashboard" | "chat" | "workspace" | "universe" | "constellation" | "city";
+type View = "dashboard" | "chat" | "workspace" | "universe" | "constellation" | "city" | "radio" | "history" | "slowroads";
 
 export default function Home() {
   const [currentView, setCurrentView] = useState<View>("dashboard");
@@ -102,7 +102,7 @@ export default function Home() {
   };
 
   const navigate = useCallback((view: string) => {
-    if (["dashboard", "chat", "workspace", "universe", "constellation", "city"].includes(view)) {
+    if (["dashboard", "chat", "workspace", "universe", "constellation", "city", "radio", "history", "slowroads"].includes(view)) {
       setCurrentView(view as View);
       setSidebarOpen(false);
       setHeartOpen(false);
@@ -113,9 +113,131 @@ export default function Home() {
     dashboard: <Dashboard onNavigate={navigate} onOpenLesson={() => showToast("Lesson feature coming soon!", "info")} />,
     chat: <ChatWindow onClose={() => navigate("universe")} />,
     workspace: <WorkspaceView showToast={(msg, type) => showToast(msg, (type || "info") as ToastType)} onClose={() => navigate("universe")} />,
-    universe: <Universe3D />,
+    universe: (
+      <div style={{ width: "100%", height: "100%", position: "relative" }}>
+        <Universe3D />
+        <div style={{
+          position: "absolute",
+          bottom: "20px",
+          left: "50%",
+          transform: "translateX(-50%)",
+          display: "flex",
+          gap: "12px",
+          zIndex: 10,
+        }}>
+          <a href="/api/proxy?url=https://radio.garden/live" target="_blank" rel="noopener noreferrer"
+            style={{
+              padding: "10px 20px",
+              background: "rgba(255,107,107,0.2)",
+              backdropFilter: "blur(10px)",
+              borderRadius: "12px",
+              color: "#fff",
+              textDecoration: "none",
+              fontSize: "0.85rem",
+              border: "1px solid rgba(255,107,107,0.3)",
+              transition: "all 0.3s",
+            }}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.background = "rgba(255,107,107,0.4)";
+              e.currentTarget.style.transform = "translateY(-2px)";
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.background = "rgba(255,107,107,0.2)";
+              e.currentTarget.style.transform = "translateY(0)";
+            }}
+          >
+            📻 Radio Garden
+          </a>
+          <a href="https://embed.openhistoricalmap.org/#map=3/20/0&date=1900&layer=O" target="_blank" rel="noopener noreferrer"
+            style={{
+              padding: "10px 20px",
+              background: "rgba(100,200,255,0.2)",
+              backdropFilter: "blur(10px)",
+              borderRadius: "12px",
+              color: "#fff",
+              textDecoration: "none",
+              fontSize: "0.85rem",
+              border: "1px solid rgba(100,200,255,0.3)",
+              transition: "all 0.3s",
+            }}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.background = "rgba(100,200,255,0.4)";
+              e.currentTarget.style.transform = "translateY(-2px)";
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.background = "rgba(100,200,255,0.2)";
+              e.currentTarget.style.transform = "translateY(0)";
+            }}
+          >
+            📜 OpenHistory
+          </a>
+          <a href="https://slowroads.io" target="_blank" rel="noopener noreferrer"
+            style={{
+              padding: "10px 20px",
+              background: "rgba(254,202,87,0.2)",
+              backdropFilter: "blur(10px)",
+              borderRadius: "12px",
+              color: "#fff",
+              textDecoration: "none",
+              fontSize: "0.85rem",
+              border: "1px solid rgba(254,202,87,0.3)",
+              transition: "all 0.3s",
+            }}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.background = "rgba(254,202,87,0.4)";
+              e.currentTarget.style.transform = "translateY(-2px)";
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.background = "rgba(254,202,87,0.2)";
+              e.currentTarget.style.transform = "translateY(0)";
+            }}
+          >
+            🛣️ Slow Roads
+          </a>
+        </div>
+      </div>
+    ),
     constellation: <ConstellationMap />,
     city: <VeridiaCity />,
+    radio: (
+      <div className="embed-viewport">
+        <iframe
+          src="/api/proxy?url=https://radio.garden/live"
+          className="external-frame"
+          title="Radio Garden"
+          allow="autoplay; fullscreen; geolocation"
+          sandbox="allow-scripts allow-same-origin allow-popups allow-forms"
+        />
+      </div>
+    ),
+    history: (
+      <div className="embed-viewport">
+        <iframe
+          src="https://embed.openhistoricalmap.org/#map=3/20/0&date=1900&layer=O"
+          className="external-frame"
+          title="OpenHistoricalMap"
+          allow="fullscreen"
+        />
+      </div>
+    ),
+    slowroads: (
+      <div className="embed-viewport slowroads-card">
+        <div className="slowroads-content">
+          <span className="slowroads-emoji">🛣️</span>
+          <h2>Slow Roads</h2>
+          <p>An endless, procedurally generated scenic drive through beautiful countryside.</p>
+          <p className="slowroads-hint">Use WASD to drive • Very relaxing experience</p>
+          <a 
+            href="https://slowroads.io" 
+            target="_blank" 
+            rel="noopener noreferrer"
+            className="slowroads-link"
+          >
+            🚗 Open Slow Roads ↗
+          </a>
+        </div>
+      </div>
+    ),
   };
 
   return (
@@ -193,6 +315,9 @@ export default function Home() {
               { id: "universe" as View, icon: <GlobeIcon size={20} />, label: "Universe" },
               { id: "constellation" as View, icon: <ConstellationIcon size={20} />, label: "Constellation" },
               { id: "city" as View, icon: <CityIcon size={20} />, label: "Veridia City" },
+              { id: "radio" as View, icon: <span>📻</span>, label: "Radio Garden" },
+              { id: "history" as View, icon: <span>📜</span>, label: "History" },
+              { id: "slowroads" as View, icon: <span>🛣️</span>, label: "Slow Roads" },
             ].map((item) => (
               <button
                 key={item.id}
@@ -256,6 +381,27 @@ export default function Home() {
         >
           <CityIcon size={20} />
         </button>
+        <button
+          className={`dock-btn ${currentView === "radio" ? "active" : ""}`}
+          onClick={() => navigate("radio")}
+          aria-label="Radio Garden"
+        >
+          📻
+        </button>
+        <button
+          className={`dock-btn ${currentView === "history" ? "active" : ""}`}
+          onClick={() => navigate("history")}
+          aria-label="History"
+        >
+          📜
+        </button>
+        <button
+          className={`dock-btn ${currentView === "slowroads" ? "active" : ""}`}
+          onClick={() => navigate("slowroads")}
+          aria-label="Slow Roads"
+        >
+          🛣️
+        </button>
         <div className="dock-divider" />
         <button className="dock-btn hide-mobile" onClick={() => setSidebarOpen(true)} aria-label="Menu">
           <MenuIcon size={20} />
@@ -308,6 +454,72 @@ export default function Home() {
       </main>
 
       <style jsx>{`
+        .embed-viewport {
+          width: 100%;
+          height: 100%;
+          border-radius: 24px;
+          overflow: hidden;
+          background: rgba(10,10,25,0.6);
+          border: 1px solid rgba(255,255,255,0.08);
+        }
+        .external-frame {
+          width: 100%;
+          height: 100%;
+          border: none;
+          display: block;
+        }
+        .slowroads-card {
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          background: linear-gradient(135deg, rgba(20,30,20,0.9), rgba(10,20,10,0.95));
+        }
+        .slowroads-content {
+          text-align: center;
+          padding: 40px;
+          max-width: 500px;
+        }
+        .slowroads-emoji {
+          font-size: 4rem;
+          display: block;
+          margin-bottom: 20px;
+        }
+        .slowroads-content h2 {
+          font-size: 2rem;
+          color: #fff;
+          margin: 0 0 16px 0;
+          background: linear-gradient(90deg, #90ee90, #48dbfb);
+          -webkit-background-clip: text;
+          -webkit-text-fill-color: transparent;
+        }
+        .slowroads-content p {
+          color: #a0a0b8;
+          font-size: 1rem;
+          line-height: 1.6;
+          margin: 0 0 12px 0;
+        }
+        .slowroads-hint {
+          font-size: 0.85rem !important;
+          color: #6e6e8a !important;
+          font-style: italic;
+        }
+        .slowroads-link {
+          display: inline-block;
+          margin-top: 24px;
+          padding: 14px 32px;
+          background: linear-gradient(135deg, #48dbfb, #90ee90);
+          color: #0a0a1a;
+          text-decoration: none;
+          border-radius: 14px;
+          font-weight: 700;
+          font-size: 1rem;
+          transition: all 0.3s;
+          box-shadow: 0 8px 30px rgba(72,219,251,0.3);
+        }
+        .slowroads-link:hover {
+          transform: translateY(-4px);
+          box-shadow: 0 12px 40px rgba(72,219,251,0.5);
+        }
         .music-toggle {
           position: fixed;
           bottom: 24px;

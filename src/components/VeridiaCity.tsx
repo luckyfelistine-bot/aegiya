@@ -74,7 +74,7 @@ export default function VeridiaCity() {
     const scene = new THREE.Scene();
     scene.background = new THREE.Color(0x87ceeb);
     scene.fog = new THREE.Fog(0x87ceeb, 120 * settingsRef.current.fogDensity, 350 * settingsRef.current.fogDensity);
-    scene.autoUpdate = false;
+    // scene.autoUpdate removed - not available in this Three.js version
 
     const camera = new THREE.PerspectiveCamera(50, container.clientWidth / container.clientHeight, 0.1, 1000);
     camera.position.set(50, cameraHeight, 50);

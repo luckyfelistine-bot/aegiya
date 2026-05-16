@@ -17,7 +17,7 @@ export default function VeridiaCity() {
 
   // ─── Settings State ───
   const [showSettings, setShowSettings] = useState(false);
-  const [timeSpeed, setTimeSpeed] = useState(1); // 0.5 = slow, 1 = normal, 2 = fast, 5 = super fast
+  const [timeSpeed, setTimeSpeed] = useState(1);
   const [paused, setPaused] = useState(false);
   const [showFamily, setShowFamily] = useState(true);
   const [showCars, setShowCars] = useState(true);
@@ -27,46 +27,24 @@ export default function VeridiaCity() {
   const [fogDensity, setFogDensity] = useState(1);
   const [cameraHeight, setCameraHeight] = useState(45);
   const [loveMessage, setLoveMessage] = useState("For My Love — Forever & Always 💕");
-  const [showSettings, setShowSettings] = useState(false);
   const [showDedication, setShowDedication] = useState(true);
 
-  const [simSpeed, setSimSpeed] = useState(1);
-  const [isNightMode, setIsNightMode] = useState(false);
-  const [isDayMode, setIsDayMode] = useState(false);
-  const [shadowsEnabled, setShadowsEnabled] = useState(true);
-  const [fogEnabled, setFogEnabled] = useState(true);
-  const [pedestriansEnabled, setPedestriansEnabled] = useState(true);
-  const [carsEnabled, setCarsEnabled] = useState(true);
-  const [familyAnimEnabled, setFamilyAnimEnabled] = useState(true);
-  const [showFPS, setShowFPS] = useState(false);
-
+  // Ref for animation loop to read settings without re-renders
   const settingsRef = useRef({
-    simSpeed: 1, isNightMode: false, isDayMode: false,
-    shadowsEnabled: true, fogEnabled: true,
-    pedestriansEnabled: true, carsEnabled: true,
-    familyAnimEnabled: true, showFPS: false,
+    timeSpeed: 1,
+    paused: false,
+    showFamily: true,
+    showCars: true,
+    showPedestrians: true,
+    showSchoolKids: true,
+    fogDensity: 1,
   });
 
   useEffect(() => {
     settingsRef.current = {
-      simSpeed, isNightMode, isDayMode, shadowsEnabled, fogEnabled,
-      pedestriansEnabled, carsEnabled, familyAnimEnabled, showFPS,
+      timeSpeed, paused, showFamily, showCars, showPedestrians, showSchoolKids, fogDensity,
     };
-  }, [simSpeed, isNightMode, isDayMode, shadowsEnabled, fogEnabled, pedestriansEnabled, carsEnabled, familyAnimEnabled, showFPS]);
-
-  const fpsRef = useRef(0);
-  const fpsDisplayRef = useRef<HTMLDivElement>(null);
-
-  // Refs for settings that change frequently (read by animation loop)
-  const settingsRef = useRef({
-    timeSpeed,
-    paused,
-    showFamily,
-    showCars,
-    showPedestrians,
-    showSchoolKids,
-    fogDensity,
-  });
+  }, [timeSpeed, paused, showFamily, showCars, showPedestrians, showSchoolKids, fogDensity]);
 
   // Update refs when settings change
   useEffect(() => {

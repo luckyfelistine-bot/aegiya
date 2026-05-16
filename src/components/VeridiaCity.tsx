@@ -482,7 +482,7 @@ export default function VeridiaCity() {
     createLuxuryCar(M.carRed, mx + 8, mz + 14, 0.05);
 
     // ==================== FAMILY ====================
-    function createPerson(opts: any) {
+    function createPerson(opts: any): any {
       const g = new THREE.Group();
       const { height = 1.75, shirtMat, pantsMat, hairMat, isFemale = false, isChild = false } = opts;
       const scale = isChild ? 0.55 : 1.0;
@@ -535,7 +535,7 @@ export default function VeridiaCity() {
       }
 
       scene.add(g);
-      return { mesh: g, arm1, arm2, leg1, leg2, height: h, scale, isChild };
+      return { mesh: g, arm1, arm2, leg1, leg2, height: h, scale, isChild } as any;
     }
 
     const family: Record<string, any> = {

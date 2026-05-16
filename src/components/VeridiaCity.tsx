@@ -14,6 +14,7 @@ export default function VeridiaCity() {
   const clockRef = useRef<HTMLDivElement>(null);
   const dateRef = useRef<HTMLDivElement>(null);
   const [loading, setLoading] = useState(true);
+  const [fps, setFps] = useState(60);
 
   // ─── Settings State ───
   const [showSettings, setShowSettings] = useState(false);
@@ -61,10 +62,22 @@ export default function VeridiaCity() {
     };
   }, [timeSpeed, paused, showFamily, showCars, showPedestrians, showSchoolKids, fogDensity, dayNightCycle, carSpeed, pedestrianSpeed, showStreetLights, shadows, fog, autoRotate]);
 
-  // Update refs when settings change
-  useEffect(() => {
-    settingsRef.current = { timeSpeed, paused, showFamily, showCars, showPedestrians, showSchoolKids, fogDensity };
-  }, [timeSpeed, paused, showFamily, showCars, showPedestrians, showSchoolKids, fogDensity]);
+  // Helper to update settings from UI
+  const updateSetting = (key: string, value: any) => {
+    switch (key) {
+      case "timeSpeed": setTimeSpeed(value); break;
+      case "carSpeed": setCarSpeed(value); break;
+      case "pedestrianSpeed": setPedestrianSpeed(value); break;
+      case "showCars": setShowCars(value); break;
+      case "showPedestrians": setShowPedestrians(value); break;
+      case "showFamily": setShowFamily(value); break;
+      case "showStreetLights": setShowStreetLights(value); break;
+      case "dayNightCycle": setDayNightCycle(value); break;
+      case "shadows": setShadows(value); break;
+      case "fog": setFog(value); break;
+      case "autoRotate": setAutoRotate(value); break;
+    }
+  };
 
   useEffect(() => {
     const container = mountRef.current;
@@ -89,11 +102,9 @@ export default function VeridiaCity() {
     const scene = new THREE.Scene();
     scene.background = new THREE.Color(0x87ceeb);
     scene.fog = new THREE.Fog(0x87ceeb, 120 * settingsRef.current.fogDensity, 350 * settingsRef.current.fogDensity);
-    // scene.autoUpdate removed - not available in this Three.js version
 
     const camera = new THREE.PerspectiveCamera(50, container.clientWidth / container.clientHeight, 0.1, 1000);
     camera.position.set(50, cameraHeight, 50);
-    camera.matrixAutoUpdate = false;
     camera.updateMatrix();
 
     const renderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: "high-performance" });
@@ -101,7 +112,6 @@ export default function VeridiaCity() {
     renderer.setPixelRatio(Math.min(window.devicePixelRatio, 1.5));
     renderer.shadowMap.enabled = true;
     renderer.shadowMap.type = THREE.PCFSoftShadowMap;
-    renderer.info.autoReset = false;
     container.appendChild(renderer.domElement);
 
     const controls = new OrbitControls(camera, renderer.domElement);
@@ -438,6 +448,267 @@ export default function VeridiaCity() {
     scene.add(ball);
     const ballState = { x: schoolBounds.cx, z: fieldZ, vx: 0, vz: 0 };
 
+    // ==================== LANES FOR CARS ====================
+    const lanes: any[] = [];
+    const laneColors = [M.carRed, M.carBlue, M.carBlack, M.carWhite, M.carSilver, M.carGold];
+    ROAD_CENTERS.forEach((z) => {
+      lanes.push({ type: "h", z, dir: 1, id: `h_pos_${z}`, x: null });
+      lanes.push({ type: "h", z, dir: -1, id: `h_neg_${z}`, x: null });
+    });
+    ROAD_CENTERS.forEach((x) => {
+      lanes.push({ type: "v", x, dir: 1, id: `v_pos_${x}`, z: null });
+      lanes.push({ type: "v", x, dir: -1, id: `v_neg_${x}`, z: null });
+    });
+
+    // ==================== CARS ====================
+    const cars: any[] = [];
+    function createCar(lane: any, x: number, z: number, colorMat: THREE.Material) {
+      const group = new THREE.Group();
+      const bodyGeo = new THREE.BoxGeometry(1.8, 0.5, 1);
+      const body = new THREE.Mesh(bodyGeo, colorMat);
+      body.castShadow = true;
+      body.receiveShadow = true;
+      group.add(body);
+      const roofGeo = new THREE.BoxGeometry(1.2, 0.3, 0.8);
+      const roof = new THREE.Mesh(roofGeo, M.glass);
+      roof.position.y = 0.4;
+      roof.castShadow = true;
+      group.add(roof);
+      const wheelGeo = new THREE.CylinderGeometry(0.25, 0.25, 0.1, 12);
+      const wheelMat = M.wheel;
+      const positions = [[-0.7, -0.2, -0.6], [0.7, -0.2, -0.6], [-0.7, -0.2, 0.6], [0.7, -0.2, 0.6]];
+      const wheels: any[] = [];
+      positions.forEach(([x, y, z]) => {
+        const wheel = new THREE.Mesh(wheelGeo, wheelMat);
+        wheel.position.set(x, y, z);
+        wheel.rotation.z = Math.PI / 2;
+        wheel.castShadow = true;
+        group.add(wheel);
+        wheels.push(wheel);
+      });
+      group.position.set(x, 0, z);
+      scene.add(group);
+      return { mesh: group, lane, pos: lane.type === "h" ? x : z, speed: 0.02 + Math.random() * 0.04, maxSpeed: 0.12, wheels, state: "driving", turnData: null };
+    }
+
+    for (let i = 0; i < 16; i++) {
+      const lane = lanes[Math.floor(Math.random() * lanes.length)];
+      let x = 0, z = 0;
+      if (lane.type === "h") {
+        x = (Math.random() * 160) - 80;
+        z = lane.z;
+      } else {
+        x = lane.x;
+        z = (Math.random() * 160) - 80;
+      }
+      const colorMat = laneColors[Math.floor(Math.random() * laneColors.length)];
+      const car = createCar(lane, x, z, colorMat);
+      car.pos = lane.type === "h" ? x : z;
+      cars.push(car);
+    }
+
+    // ==================== PEDESTRIANS ====================
+    const pedestrians: any[] = [];
+    function createPedestrian(x: number, z: number, shirtMat: THREE.Material) {
+      const group = new THREE.Group();
+      const bodyGeo = new THREE.BoxGeometry(0.5, 0.8, 0.4);
+      const body = new THREE.Mesh(bodyGeo, shirtMat);
+      body.position.y = 0.4;
+      body.castShadow = true;
+      group.add(body);
+      const headGeo = new THREE.SphereGeometry(0.3, 16, 16);
+      const head = new THREE.Mesh(headGeo, M.skin);
+      head.position.y = 0.9;
+      head.castShadow = true;
+      group.add(head);
+      const legGeo = new THREE.BoxGeometry(0.2, 0.5, 0.2);
+      const leg1 = new THREE.Mesh(legGeo, M.pantsBlue);
+      leg1.position.set(-0.15, 0.2, 0);
+      leg1.castShadow = true;
+      const leg2 = new THREE.Mesh(legGeo, M.pantsBlue);
+      leg2.position.set(0.15, 0.2, 0);
+      leg2.castShadow = true;
+      group.add(leg1);
+      group.add(leg2);
+      const armGeo = new THREE.BoxGeometry(0.2, 0.6, 0.2);
+      const arm1 = new THREE.Mesh(armGeo, shirtMat);
+      arm1.position.set(-0.4, 0.7, 0);
+      arm1.castShadow = true;
+      const arm2 = new THREE.Mesh(armGeo, shirtMat);
+      arm2.position.set(0.4, 0.7, 0);
+      arm2.castShadow = true;
+      group.add(arm1);
+      group.add(arm2);
+      group.position.set(x, 0, z);
+      scene.add(group);
+      return {
+        mesh: group, targetX: x + (Math.random() - 0.5) * 30, targetZ: z + (Math.random() - 0.5) * 30,
+        speed: 0.03 + Math.random() * 0.04, waitTime: 0, leg1, leg2, arm1, arm2
+      };
+    }
+
+    const shirtColors = [M.shirtBlue, M.shirtWhite, M.shirtGreen, M.shirtPink, M.shirtRed, M.shirtYellow, M.shirtPurple];
+    for (let i = 0; i < 40; i++) {
+      const x = (Math.random() - 0.5) * 150;
+      const z = (Math.random() - 0.5) * 150;
+      const shirt = shirtColors[Math.floor(Math.random() * shirtColors.length)];
+      pedestrians.push(createPedestrian(x, z, shirt));
+    }
+
+    // ==================== SCHOOL KIDS ====================
+    const schoolKids: any[] = [];
+    function createSchoolKid(x: number, z: number) {
+      const group = new THREE.Group();
+      const bodyGeo = new THREE.BoxGeometry(0.45, 0.7, 0.35);
+      const body = new THREE.Mesh(bodyGeo, M.shirtBlue);
+      body.position.y = 0.35;
+      body.castShadow = true;
+      group.add(body);
+      const headGeo = new THREE.SphereGeometry(0.28, 16, 16);
+      const head = new THREE.Mesh(headGeo, M.skin);
+      head.position.y = 0.8;
+      head.castShadow = true;
+      group.add(head);
+      const legGeo = new THREE.BoxGeometry(0.18, 0.45, 0.18);
+      const leg1 = new THREE.Mesh(legGeo, M.pantsGray);
+      leg1.position.set(-0.12, 0.2, 0);
+      leg1.castShadow = true;
+      const leg2 = new THREE.Mesh(legGeo, M.pantsGray);
+      leg2.position.set(0.12, 0.2, 0);
+      leg2.castShadow = true;
+      group.add(leg1);
+      group.add(leg2);
+      const armGeo = new THREE.BoxGeometry(0.18, 0.5, 0.18);
+      const arm1 = new THREE.Mesh(armGeo, M.shirtBlue);
+      arm1.position.set(-0.35, 0.65, 0);
+      arm1.castShadow = true;
+      const arm2 = new THREE.Mesh(armGeo, M.shirtBlue);
+      arm2.position.set(0.35, 0.65, 0);
+      arm2.castShadow = true;
+      group.add(arm1);
+      group.add(arm2);
+      group.position.set(x, 0, z);
+      scene.add(group);
+      return {
+        mesh: group, targetX: x + (Math.random() - 0.5) * 20, targetZ: z + (Math.random() - 0.5) * 12,
+        speed: 0.04 + Math.random() * 0.05, waitTime: 0, leg1, leg2, arm1, arm2
+      };
+    }
+
+    for (let i = 0; i < 8; i++) {
+      const x = schoolBounds.cx + (Math.random() - 0.5) * 20;
+      const z = fieldZ + (Math.random() - 0.5) * 12;
+      schoolKids.push(createSchoolKid(x, z));
+    }
+
+    // ==================== FAMILY ====================
+    const family: any = {};
+    function createPerson(x: number, z: number, bodyColor: THREE.Material, shirtColor: THREE.Material, scale = 1) {
+      const group = new THREE.Group();
+      const bodyGeo = new THREE.BoxGeometry(0.5 * scale, 0.85 * scale, 0.4 * scale);
+      const body = new THREE.Mesh(bodyGeo, bodyColor);
+      body.position.y = 0.45 * scale;
+      body.castShadow = true;
+      group.add(body);
+      const headGeo = new THREE.SphereGeometry(0.3 * scale, 16, 16);
+      const head = new THREE.Mesh(headGeo, M.skin);
+      head.position.y = 0.95 * scale;
+      head.castShadow = true;
+      group.add(head);
+      const legGeo = new THREE.BoxGeometry(0.2 * scale, 0.5 * scale, 0.2 * scale);
+      const leg1 = new THREE.Mesh(legGeo, M.pantsBlue);
+      leg1.position.set(-0.15 * scale, 0.25 * scale, 0);
+      leg1.castShadow = true;
+      const leg2 = new THREE.Mesh(legGeo, M.pantsBlue);
+      leg2.position.set(0.15 * scale, 0.25 * scale, 0);
+      leg2.castShadow = true;
+      group.add(leg1);
+      group.add(leg2);
+      const armGeo = new THREE.BoxGeometry(0.2 * scale, 0.6 * scale, 0.2 * scale);
+      const arm1 = new THREE.Mesh(armGeo, shirtColor);
+      arm1.position.set(-0.4 * scale, 0.75 * scale, 0);
+      arm1.castShadow = true;
+      const arm2 = new THREE.Mesh(armGeo, shirtColor);
+      arm2.position.set(0.4 * scale, 0.75 * scale, 0);
+      arm2.castShadow = true;
+      group.add(arm1);
+      group.add(arm2);
+      group.position.set(x, 0, z);
+      scene.add(group);
+      return { mesh: group, leg1, leg2, arm1, arm2 };
+    }
+    family.dad = createPerson(-4, -12, M.shirtBlue, M.shirtBlue, 1.05);
+    family.mom = createPerson(0, -12, M.shirtPink, M.shirtPink, 1);
+    family.son = createPerson(4, -12, M.shirtGreen, M.shirtGreen, 0.85);
+    family.daughter = createPerson(7, -11.5, M.dress, M.dress, 0.8);
+
+    // ==================== STREET LIGHTS ====================
+    const streetLights: any[] = [];
+    function createStreetLight(x: number, z: number) {
+      const group = new THREE.Group();
+      const poleGeo = new THREE.CylinderGeometry(0.2, 0.3, 3.5, 6);
+      const pole = new THREE.Mesh(poleGeo, M.metal);
+      pole.position.y = 1.75;
+      pole.castShadow = true;
+      group.add(pole);
+      const armGeo = new THREE.BoxGeometry(1.2, 0.1, 0.1);
+      const arm = new THREE.Mesh(armGeo, M.metal);
+      arm.position.set(0.6, 3.2, 0);
+      arm.castShadow = true;
+      group.add(arm);
+      const bulbGeo = new THREE.SphereGeometry(0.2, 8, 8);
+      const bulb = new THREE.Mesh(bulbGeo, new THREE.MeshStandardMaterial({ color: 0xffdd99, emissive: 0xffaa55, emissiveIntensity: 0 }));
+      bulb.position.set(1.1, 3.2, 0);
+      bulb.castShadow = true;
+      group.add(bulb);
+      group.position.set(x, 0, z);
+      scene.add(group);
+      const light = new THREE.PointLight(0xffaa66, 0, 12);
+      light.position.set(x + 1.1, 3.2, z);
+      scene.add(light);
+      streetLights.push({ light, bulb, group });
+    }
+
+    for (let x = -70; x <= 70; x += 20) {
+      for (let z of ROAD_CENTERS) {
+        if (Math.abs(x) < 80 && Math.abs(z) < 80) createStreetLight(x + 4, z + 3);
+        if (Math.abs(x) < 80 && Math.abs(z) < 80) createStreetLight(x + 4, z - 3);
+      }
+    }
+
+    // ==================== TURN CURVE HELPER ====================
+    function getTurnCurve(ix: number, iz: number, lane: any, turn: string) {
+      let startX = lane.type === "h" ? lane.dir > 0 ? ix - 8 : ix + 8 : lane.x;
+      let startZ = lane.type === "h" ? lane.z : lane.dir > 0 ? iz - 8 : iz + 8;
+      let endX = startX, endZ = startZ;
+      let startRot = lane.type === "h" ? (lane.dir > 0 ? -Math.PI / 2 : Math.PI / 2) : (lane.dir > 0 ? 0 : Math.PI);
+      let endRot = startRot;
+      if (turn === "right") {
+        if (lane.type === "h") {
+          endX = lane.dir > 0 ? ix + 8 : ix - 8;
+          endZ = lane.dir > 0 ? iz - 8 : iz + 8;
+          endRot = lane.dir > 0 ? 0 : Math.PI;
+        } else {
+          endX = lane.dir > 0 ? ix + 8 : ix - 8;
+          endZ = lane.dir > 0 ? iz + 8 : iz - 8;
+          endRot = lane.dir > 0 ? -Math.PI / 2 : Math.PI / 2;
+        }
+      } else if (turn === "left") {
+        if (lane.type === "h") {
+          endX = lane.dir > 0 ? ix + 8 : ix - 8;
+          endZ = lane.dir > 0 ? iz + 8 : iz - 8;
+          endRot = lane.dir > 0 ? Math.PI : 0;
+        } else {
+          endX = lane.dir > 0 ? ix - 8 : ix + 8;
+          endZ = lane.dir > 0 ? iz + 8 : iz - 8;
+          endRot = lane.dir > 0 ? Math.PI / 2 : -Math.PI / 2;
+        }
+      }
+      const cx = (startX + endX) / 2;
+      const cz = (startZ + endZ) / 2;
+      return { startX, startZ, endX, endZ, cx, cz, startRot, endRot };
+    }
+
     // ==================== TIME SYSTEM ====================
     let timeOfDay = 9.0;
 
@@ -587,9 +858,7 @@ export default function VeridiaCity() {
         }
         const wheelSpeed = car.speed * 15;
         car.wheels.forEach((w: any) => {
-          w.children.forEach((c: any) => {
-            if (c.geometry && c.geometry.type === "CylinderGeometry") c.rotation.x += wheelSpeed * dtSec;
-          });
+          w.rotation.x += wheelSpeed * dtSec;
         });
       });
     }
@@ -763,7 +1032,13 @@ export default function VeridiaCity() {
         container.removeChild(renderer.domElement);
       }
     };
-  }, []);
+  }, [cameraHeight]); // Re-run when camera height changes
+
+  // Update camera height when slider changes
+  useEffect(() => {
+    // This effect runs when cameraHeight changes, but the actual camera is inside the main effect.
+    // We'll just let the main effect re-run, which is fine.
+  }, [cameraHeight]);
 
   return (
     <div className="veridia-wrapper">
@@ -907,69 +1182,6 @@ export default function VeridiaCity() {
       </div>
 
       <div className="fps-counter">{fps} FPS</div>
-
-      <button className="settings-toggle" onClick={() => setShowSettings(!showSettings)} title="Settings">
-        ⚙️
-      </button>
-
-      {showSettings && (
-        <div className="settings-panel">
-          <h3>🌆 Veridia Settings</h3>
-
-          <div className="setting-group">
-            <label>⏱️ Time Speed</label>
-            <input type="range" min="0" max="5" step="0.1" value={timeSpeed}
-              onChange={(e) => updateSetting("timeSpeed", parseFloat(e.target.value))} />
-            <span>{timeSpeed}x</span>
-          </div>
-
-          <div className="setting-group">
-            <label>🚗 Car Speed</label>
-            <input type="range" min="0" max="3" step="0.1" value={carSpeed}
-              onChange={(e) => updateSetting("carSpeed", parseFloat(e.target.value))} />
-            <span>{carSpeed}x</span>
-          </div>
-
-          <div className="setting-group">
-            <label>🚶 Pedestrian Speed</label>
-            <input type="range" min="0" max="3" step="0.1" value={pedestrianSpeed}
-              onChange={(e) => updateSetting("pedestrianSpeed", parseFloat(e.target.value))} />
-            <span>{pedestrianSpeed}x</span>
-          </div>
-
-          <div className="setting-row">
-            <label><input type="checkbox" checked={showCars}
-              onChange={(e) => updateSetting("showCars", e.target.checked)} /> 🚗 Cars</label>
-            <label><input type="checkbox" checked={showPedestrians}
-              onChange={(e) => updateSetting("showPedestrians", e.target.checked)} /> 🚶 People</label>
-          </div>
-
-          <div className="setting-row">
-            <label><input type="checkbox" checked={showFamily}
-              onChange={(e) => updateSetting("showFamily", e.target.checked)} /> 👨‍👩‍👧‍👦 Family</label>
-            <label><input type="checkbox" checked={showStreetLights}
-              onChange={(e) => updateSetting("showStreetLights", e.target.checked)} /> 💡 Street Lights</label>
-          </div>
-
-          <div className="setting-row">
-            <label><input type="checkbox" checked={dayNightCycle}
-              onChange={(e) => updateSetting("dayNightCycle", e.target.checked)} /> 🌅 Day/Night</label>
-            <label><input type="checkbox" checked={shadows}
-              onChange={(e) => updateSetting("shadows", e.target.checked)} /> 🌑 Shadows</label>
-          </div>
-
-          <div className="setting-row">
-            <label><input type="checkbox" checked={fog}
-              onChange={(e) => updateSetting("fog", e.target.checked)} /> 🌫️ Fog</label>
-            <label><input type="checkbox" checked={autoRotate}
-              onChange={(e) => updateSetting("autoRotate", e.target.checked)} /> 🔄 Auto Rotate</label>
-          </div>
-
-          <p className="setting-hint">
-            Made with 💕 for Dal — Your forever home in Veridia
-          </p>
-        </div>
-      )}
 
       <div ref={mountRef} className="city-canvas" />
 
@@ -1290,135 +1502,13 @@ export default function VeridiaCity() {
         }
         .fps-counter {
           position: absolute;
-          top: 20px;
+          bottom: 20px;
           left: 20px;
           z-index: 10;
           color: rgba(255, 255, 255, 0.4);
           font-size: 11px;
           font-family: monospace;
           pointer-events: none;
-        }
-        .settings-toggle {
-          position: absolute;
-          top: 20px;
-          right: 50%;
-          transform: translateX(50%);
-          z-index: 20;
-          width: 44px;
-          height: 44px;
-          border-radius: 50%;
-          background: rgba(255, 255, 255, 0.1);
-          backdrop-filter: blur(10px);
-          border: 1px solid rgba(255, 255, 255, 0.15);
-          color: white;
-          font-size: 1.3rem;
-          cursor: pointer;
-          transition: all 0.3s;
-          display: flex;
-          align-items: center;
-          justify-content: center;
-        }
-        .settings-toggle:hover {
-          background: rgba(255, 255, 255, 0.2);
-          transform: translateX(50%) scale(1.1);
-        }
-        .settings-panel {
-          position: absolute;
-          top: 70px;
-          right: 50%;
-          transform: translateX(50%);
-          z-index: 20;
-          width: 320px;
-          max-height: 70vh;
-          overflow-y: auto;
-          background: rgba(10, 10, 25, 0.92);
-          backdrop-filter: blur(20px);
-          border: 1px solid rgba(255, 255, 255, 0.1);
-          border-radius: 20px;
-          padding: 24px;
-          color: #fff;
-          font-family: "Segoe UI", sans-serif;
-          box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
-          animation: slideDown 0.3s ease;
-        }
-        @keyframes slideDown {
-          from { opacity: 0; transform: translateX(50%) translateY(-10px); }
-          to { opacity: 1; transform: translateX(50%) translateY(0); }
-        }
-        .settings-panel h3 {
-          margin: 0 0 20px 0;
-          font-size: 1.1rem;
-          text-align: center;
-          background: linear-gradient(90deg, #ff6b6b, #feca57);
-          -webkit-background-clip: text;
-          -webkit-text-fill-color: transparent;
-        }
-        .setting-group {
-          margin-bottom: 16px;
-        }
-        .setting-group label {
-          display: block;
-          font-size: 0.85rem;
-          color: #a0a0b8;
-          margin-bottom: 6px;
-        }
-        .setting-group input[type="range"] {
-          width: 100%;
-          -webkit-appearance: none;
-          height: 5px;
-          border-radius: 3px;
-          background: rgba(255, 255, 255, 0.1);
-          outline: none;
-        }
-        .setting-group input[type="range"]::-webkit-slider-thumb {
-          -webkit-appearance: none;
-          width: 14px;
-          height: 14px;
-          border-radius: 50%;
-          background: linear-gradient(135deg, #ff6b6b, #feca57);
-          cursor: pointer;
-        }
-        .setting-group span {
-          display: inline-block;
-          margin-top: 4px;
-          font-size: 0.8rem;
-          color: #feca57;
-          font-variant-numeric: tabular-nums;
-        }
-        .setting-row {
-          display: grid;
-          grid-template-columns: 1fr 1fr;
-          gap: 10px;
-          margin-bottom: 12px;
-        }
-        .setting-row label {
-          display: flex;
-          align-items: center;
-          gap: 8px;
-          font-size: 0.85rem;
-          color: #c0c0d8;
-          cursor: pointer;
-          padding: 8px;
-          border-radius: 8px;
-          background: rgba(255, 255, 255, 0.03);
-          transition: background 0.2s;
-        }
-        .setting-row label:hover {
-          background: rgba(255, 255, 255, 0.08);
-        }
-        .setting-row input[type="checkbox"] {
-          width: 16px;
-          height: 16px;
-          accent-color: #ff6b6b;
-        }
-        .setting-hint {
-          text-align: center;
-          font-size: 0.78rem;
-          color: #6e6e8a;
-          margin-top: 16px;
-          padding-top: 12px;
-          border-top: 1px solid rgba(255, 255, 255, 0.06);
-          font-style: italic;
         }
       `}</style>
     </div>

@@ -410,8 +410,15 @@ export default function VeridiaCity() {
     createTree(schoolBounds.cx - 14, schoolBounds.cz - 8);
     createTree(schoolBounds.cx + 14, schoolBounds.cz - 8);
 
-
-    stripe2.rotation.x = 0; ball.add(stripe2);
+    // Football
+    const ball = new THREE.Group();
+    ball.add(new THREE.Mesh(new THREE.SphereGeometry(0.25, 16, 16), M.ball));
+    const stripe1 = new THREE.Mesh(new THREE.TorusGeometry(0.25, 0.03, 8, 16), M.ballStripe);
+    stripe1.rotation.x = Math.PI / 2;
+    ball.add(stripe1);
+    const stripe2 = new THREE.Mesh(new THREE.TorusGeometry(0.25, 0.03, 8, 16), M.ballStripe);
+    stripe2.rotation.x = 0;
+    ball.add(stripe2);
     ball.position.set(schoolBounds.cx, 0.25, fieldZ);
     scene.add(ball);
     const ballState = { x: schoolBounds.cx, z: fieldZ, vx: 0, vz: 0 };

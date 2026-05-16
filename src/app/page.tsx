@@ -4,6 +4,7 @@ import { useState, useEffect, useCallback, Suspense } from "react";
 import dynamic from "next/dynamic";
 import CosmosBackground from "@/components/CosmosBackground";
 import Dashboard from "@/components/Dashboard";
+import MusicPlayer from "@/components/MusicPlayer";
 import { useToast, type ToastType } from "@/components/Toast";
 import ToastContainer from "@/components/Toast";
 import { memory } from "@/lib/memory";
@@ -16,6 +17,7 @@ import {
   HeartIcon,
   XIcon,
   MenuIcon,
+  CityIcon,
 } from "@/components/SvgIcons";
 import ThemePicker from "@/components/ThemePicker";
 import InstallButton from "@/components/InstallButton";
@@ -61,13 +63,24 @@ const ConstellationMap = dynamic(() => import("@/components/ConstellationMap"), 
   ),
 });
 
-type View = "dashboard" | "chat" | "workspace" | "universe" | "constellation";
+const VeridiaCity = dynamic(() => import("@/components/VeridiaCity"), {
+  ssr: false,
+  loading: () => (
+    <div className="view-loading">
+      <div className="loading-spinner" />
+      <p>Building Veridia...</p>
+    </div>
+  ),
+});
+
+type View = "dashboard" | "chat" | "workspace" | "universe" | "constellation" | "city";
 
 export default function Home() {
   const [currentView, setCurrentView] = useState<View>("dashboard");
   const [showOnboarding, setShowOnboarding] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [heartOpen, setHeartOpen] = useState(false);
+  const [showMusic, setShowMusic] = useState(true);
   const { toasts, showToast, removeToast } = useToast();
 
   useEffect(() => {
@@ -89,7 +102,7 @@ export default function Home() {
   };
 
   const navigate = useCallback((view: string) => {
-    if (["dashboard", "chat", "workspace", "universe", "constellation"].includes(view)) {
+    if (["dashboard", "chat", "workspace", "universe", "constellation", "city"].includes(view)) {
       setCurrentView(view as View);
       setSidebarOpen(false);
       setHeartOpen(false);
@@ -102,6 +115,7 @@ export default function Home() {
     workspace: <WorkspaceView showToast={(msg, type) => showToast(msg, (type || "info") as ToastType)} onClose={() => navigate("universe")} />,
     universe: <Universe3D />,
     constellation: <ConstellationMap />,
+    city: <VeridiaCity />,
   };
 
   return (
@@ -178,6 +192,7 @@ export default function Home() {
               { id: "workspace" as View, icon: <CodeIcon size={20} />, label: "Workspace" },
               { id: "universe" as View, icon: <GlobeIcon size={20} />, label: "Universe" },
               { id: "constellation" as View, icon: <ConstellationIcon size={20} />, label: "Constellation" },
+              { id: "city" as View, icon: <CityIcon size={20} />, label: "Veridia City" },
             ].map((item) => (
               <button
                 key={item.id}
@@ -234,6 +249,13 @@ export default function Home() {
         >
           <ConstellationIcon size={20} />
         </button>
+        <button
+          className={`dock-btn ${currentView === "city" ? "active" : ""}`}
+          onClick={() => navigate("city")}
+          aria-label="Veridia City"
+        >
+          <CityIcon size={20} />
+        </button>
         <div className="dock-divider" />
         <button className="dock-btn hide-mobile" onClick={() => setSidebarOpen(true)} aria-label="Menu">
           <MenuIcon size={20} />
@@ -255,7 +277,23 @@ export default function Home() {
         )}
       </nav>
 
-      {/* Main content – always scrollable */}
+      {/* Floating Music Player Toggle */}
+      <button
+        className="music-toggle"
+        onClick={() => setShowMusic(!showMusic)}
+        title={showMusic ? "Hide Music" : "Show Music"}
+      >
+        {showMusic ? "🎵" : "🎶"}
+      </button>
+
+      {/* Floating Music Player */}
+      {showMusic && (
+        <div className="floating-music">
+          <MusicPlayer />
+        </div>
+      )}
+
+      {/* Main content */}
       <main className="main-content">
         <Suspense
           fallback={
@@ -268,6 +306,44 @@ export default function Home() {
           {views[currentView]}
         </Suspense>
       </main>
+
+      <style jsx>{`
+        .music-toggle {
+          position: fixed;
+          bottom: 24px;
+          right: 24px;
+          z-index: 100;
+          width: 52px;
+          height: 52px;
+          border-radius: 50%;
+          background: linear-gradient(135deg, #ff6b6b, #feca57);
+          border: none;
+          font-size: 1.4rem;
+          cursor: pointer;
+          box-shadow: 0 8px 30px rgba(255,107,107,0.4);
+          transition: all 0.3s;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+        }
+        .music-toggle:hover {
+          transform: scale(1.15) rotate(10deg);
+          box-shadow: 0 12px 40px rgba(255,107,107,0.6);
+        }
+        .floating-music {
+          position: fixed;
+          bottom: 88px;
+          right: 24px;
+          z-index: 99;
+          max-height: 80vh;
+          overflow-y: auto;
+          animation: slideUp 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
+        }
+        @keyframes slideUp {
+          from { opacity: 0; transform: translateY(20px); }
+          to { opacity: 1; transform: translateY(0); }
+        }
+      `}</style>
     </div>
   );
 }

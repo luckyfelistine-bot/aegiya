@@ -901,9 +901,9 @@ export default function VeridiaCity() {
 
       cars.forEach((car) => {
         if (car.state === "driving") {
-          let nearestIx = null,
+          let nearestIx: any = null,
             nearestDist = Infinity;
-          intersections.forEach((ix: any) => {
+          for (const ix of intersections) {
             let dist: number;
             if (car.lane.type === "h") {
               dist = car.lane.dir > 0 ? ix.x - car.pos : car.pos - ix.x;
@@ -914,7 +914,7 @@ export default function VeridiaCity() {
               nearestDist = dist;
               nearestIx = ix;
             }
-          });
+          }
 
           let targetSpeed = car.maxSpeed;
 
@@ -938,7 +938,7 @@ export default function VeridiaCity() {
             if (rand < 0.25) turn = "right";
             else if (rand < 0.4) turn = "left";
 
-            if (turn !== "straight") {
+            if (turn !== "straight" && nearestIx) {
               const curve = getTurnCurve(nearestIx.x, nearestIx.z, car.lane, turn);
               car.state = "turning";
               car.turnData = { ...curve, elapsed: 0, duration: 2.5 };

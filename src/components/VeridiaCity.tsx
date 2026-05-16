@@ -28,6 +28,13 @@ export default function VeridiaCity() {
   const [cameraHeight, setCameraHeight] = useState(45);
   const [loveMessage, setLoveMessage] = useState("For My Love — Forever & Always 💕");
   const [showDedication, setShowDedication] = useState(true);
+  const [dayNightCycle, setDayNightCycle] = useState(true);
+  const [carSpeed, setCarSpeed] = useState(1);
+  const [pedestrianSpeed, setPedestrianSpeed] = useState(1);
+  const [showStreetLights, setShowStreetLights] = useState(true);
+  const [shadows, setShadows] = useState(true);
+  const [fog, setFog] = useState(true);
+  const [autoRotate, setAutoRotate] = useState(true);
 
   // Ref for animation loop to read settings without re-renders
   const settingsRef = useRef({
@@ -38,13 +45,21 @@ export default function VeridiaCity() {
     showPedestrians: true,
     showSchoolKids: true,
     fogDensity: 1,
+    dayNightCycle: true,
+    carSpeed: 1,
+    pedestrianSpeed: 1,
+    showStreetLights: true,
+    shadows: true,
+    fog: true,
+    autoRotate: true,
   });
 
   useEffect(() => {
     settingsRef.current = {
       timeSpeed, paused, showFamily, showCars, showPedestrians, showSchoolKids, fogDensity,
+      dayNightCycle, carSpeed, pedestrianSpeed, showStreetLights, shadows, fog, autoRotate,
     };
-  }, [timeSpeed, paused, showFamily, showCars, showPedestrians, showSchoolKids, fogDensity]);
+  }, [timeSpeed, paused, showFamily, showCars, showPedestrians, showSchoolKids, fogDensity, dayNightCycle, carSpeed, pedestrianSpeed, showStreetLights, shadows, fog, autoRotate]);
 
   // Update refs when settings change
   useEffect(() => {
@@ -903,50 +918,50 @@ export default function VeridiaCity() {
 
           <div className="setting-group">
             <label>⏱️ Time Speed</label>
-            <input type="range" min="0" max="5" step="0.1" value={settings.timeSpeed}
+            <input type="range" min="0" max="5" step="0.1" value={timeSpeed}
               onChange={(e) => updateSetting("timeSpeed", parseFloat(e.target.value))} />
-            <span>{settings.timeSpeed}x</span>
+            <span>{timeSpeed}x</span>
           </div>
 
           <div className="setting-group">
             <label>🚗 Car Speed</label>
-            <input type="range" min="0" max="3" step="0.1" value={settings.carSpeed}
+            <input type="range" min="0" max="3" step="0.1" value={carSpeed}
               onChange={(e) => updateSetting("carSpeed", parseFloat(e.target.value))} />
-            <span>{settings.carSpeed}x</span>
+            <span>{carSpeed}x</span>
           </div>
 
           <div className="setting-group">
             <label>🚶 Pedestrian Speed</label>
-            <input type="range" min="0" max="3" step="0.1" value={settings.pedestrianSpeed}
+            <input type="range" min="0" max="3" step="0.1" value={pedestrianSpeed}
               onChange={(e) => updateSetting("pedestrianSpeed", parseFloat(e.target.value))} />
-            <span>{settings.pedestrianSpeed}x</span>
+            <span>{pedestrianSpeed}x</span>
           </div>
 
           <div className="setting-row">
-            <label><input type="checkbox" checked={settings.showCars}
+            <label><input type="checkbox" checked={showCars}
               onChange={(e) => updateSetting("showCars", e.target.checked)} /> 🚗 Cars</label>
-            <label><input type="checkbox" checked={settings.showPedestrians}
+            <label><input type="checkbox" checked={showPedestrians}
               onChange={(e) => updateSetting("showPedestrians", e.target.checked)} /> 🚶 People</label>
           </div>
 
           <div className="setting-row">
-            <label><input type="checkbox" checked={settings.showFamily}
+            <label><input type="checkbox" checked={showFamily}
               onChange={(e) => updateSetting("showFamily", e.target.checked)} /> 👨‍👩‍👧‍👦 Family</label>
-            <label><input type="checkbox" checked={settings.showStreetLights}
+            <label><input type="checkbox" checked={showStreetLights}
               onChange={(e) => updateSetting("showStreetLights", e.target.checked)} /> 💡 Street Lights</label>
           </div>
 
           <div className="setting-row">
-            <label><input type="checkbox" checked={settings.dayNightCycle}
+            <label><input type="checkbox" checked={dayNightCycle}
               onChange={(e) => updateSetting("dayNightCycle", e.target.checked)} /> 🌅 Day/Night</label>
-            <label><input type="checkbox" checked={settings.shadows}
+            <label><input type="checkbox" checked={shadows}
               onChange={(e) => updateSetting("shadows", e.target.checked)} /> 🌑 Shadows</label>
           </div>
 
           <div className="setting-row">
-            <label><input type="checkbox" checked={settings.fog}
+            <label><input type="checkbox" checked={fog}
               onChange={(e) => updateSetting("fog", e.target.checked)} /> 🌫️ Fog</label>
-            <label><input type="checkbox" checked={settings.autoRotate}
+            <label><input type="checkbox" checked={autoRotate}
               onChange={(e) => updateSetting("autoRotate", e.target.checked)} /> 🔄 Auto Rotate</label>
           </div>
 

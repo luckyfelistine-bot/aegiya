@@ -37,7 +37,7 @@ export default function VeridiaCity() {
   const [autoRotate, setAutoRotate] = useState(true);
 
   // Ref for animation loop to read settings without re-renders
-  const settingsRef = useRef({
+  const settingsRef = useRef<any>({
     timeSpeed: 1,
     paused: false,
     showFamily: true,

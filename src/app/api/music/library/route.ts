@@ -10,7 +10,7 @@ export async function GET() {
 
   const files = fs
     .readdirSync(musicDir)
-    .filter((f) => /\.(mp3|wav|ogg|m4a|flac|webm)$/i.test(f))
+    .filter((f) => /\.(mp3|wav|ogg|m4a|flac|webm|aac)$/i.test(f))
     .map((f) => {
       const clean = f.replace(/\.[^/.]+$/, "");
       const parts = clean.split(/\s*[-—]\s*/);

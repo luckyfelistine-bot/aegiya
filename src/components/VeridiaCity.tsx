@@ -137,6 +137,7 @@ export default function VeridiaCity() {
   const [walkMode, setWalkMode] = useState(false);
   const [timeMode, setTimeMode] = useState<"real" | "simulated" | "birthday">("real");
   const [fps, setFps] = useState(60);
+  const [loveMessage, setLoveMessage] = useState("For My Love — Forever & Always 💕");
 
   const settingsRef = useRef<SettingsState>({
     timeSpeed: 1, paused: false, showFamily: true, showCars: true,
